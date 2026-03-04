@@ -68,3 +68,33 @@ If you want, I can add next:
 3. Turn handoff screen (hide the other side before passing)
 4. Score + win/loss counter
 # Battleship
+
+## Wii Tanks GUI (Arduino Controller -> Computer Display)
+
+This mode uses your Arduino as the controller and your laptop as the game display.
+
+### Arduino sketch
+Upload:
+- `src/Wii_Tank_Controller/Wii_Tank_Controller.ino`
+
+Wiring used by this sketch:
+- Joystick `VRx -> A0`, `VRy -> A1`
+- Shoot button -> `D2` (to GND, using `INPUT_PULLUP`)
+- Mine button -> `D3` (to GND, using `INPUT_PULLUP`)
+- MPU6050 -> `SDA/SCL` + `5V/GND`
+
+### Computer GUI
+Install dependencies:
+- `pip install pygame pyserial`
+
+Run:
+- `python3 tools/wii_tanks_gui.py --port /dev/cu.usbmodem1101`
+
+If you skip `--port`, the script tries to auto-detect a USB serial port.
+
+### Controls
+- Move tank: joystick
+- Aim ray: MPU6050 tilt
+- Shoot: button on `D2`
+- Mine: button on `D3`
+- Reset round: `R` key
