@@ -443,17 +443,20 @@ void fire_shot_for_player(uint8_t attacker) {
   if (target == CELL_SHIP) {
     target = CELL_HIT;
     shot = SHOT_HIT;
+    Serial.println("HIT");
     play_hit_sound();
     animate_hit(attacker);
   } else {
 
     if (target == CELL_EMPTY) target = CELL_MISS;
     shot = SHOT_MISS;
+    Serial.println("MISS");
     play_miss_sound();
   }
 
   if (count_remaining_ships(defender_board) == 0) {
     winner_player = attacker;
+    Serial.println("WIN");
     game_state = STATE_GAME_OVER;
     return;
   }
@@ -467,6 +470,7 @@ void place_ship_for_player(uint8_t player_id) {
 
   if (*placed_count >= SHIP_COUNT) return;
   if (board[cursor_y][cursor_x] != CELL_EMPTY) {
+    Serial.println("ERROR");
     play_miss_sound();
     return;
   }
@@ -511,6 +515,7 @@ void show_start_screen() {
 void setup() {
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
+  Serial.begin(115200);
 
   max7219_init();
   intro_display.begin();
