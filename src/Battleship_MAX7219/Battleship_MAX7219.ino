@@ -41,6 +41,7 @@ enum GameState : uint8_t {
 
 CellState player1_board[BOARD_SIZE][BOARD_SIZE];
 CellState player2_board[BOARD_SIZE][BOARD_SIZE];
+
 ShotState player1_shots[BOARD_SIZE][BOARD_SIZE];
 ShotState player2_shots[BOARD_SIZE][BOARD_SIZE];
 
@@ -72,7 +73,9 @@ const uint8_t REG_SHUTDOWN = 0x0C;
 const uint8_t REG_DISPLAY_TEST = 0x0F;
 
 void send_all(uint8_t reg, uint8_t data) {
+
   digitalWrite(CS_PIN, LOW);
+
   for (uint8_t i = 0; i < DEVICE_COUNT; i++) {
     SPI.transfer(reg);
     SPI.transfer(data);
@@ -81,9 +84,11 @@ void send_all(uint8_t reg, uint8_t data) {
 }
 
 void send_row(uint8_t reg, const uint8_t data_by_device[DEVICE_COUNT]) {
+
   digitalWrite(CS_PIN, LOW);
 
   for (int8_t dev = DEVICE_COUNT - 1; dev >= 0; dev--) {
+
     SPI.transfer(reg);
     SPI.transfer(data_by_device[dev]);
   }
@@ -93,6 +98,7 @@ void send_row(uint8_t reg, const uint8_t data_by_device[DEVICE_COUNT]) {
 
 void clear_matrix() {
   for (uint8_t y = 0; y < 8; y++) {
+
     for (uint8_t dev = 0; dev < DEVICE_COUNT; dev++) {
       matrix_rows[y][dev] = 0;
     }
@@ -120,7 +126,9 @@ void set_pixel(uint8_t y, uint8_t x, bool on) {
 }
 
 void max7219_init() {
+
   pinMode(CS_PIN, OUTPUT);
+
   digitalWrite(CS_PIN, HIGH);
 
   SPI.begin();
@@ -132,10 +140,13 @@ void max7219_init() {
   send_all(REG_SHUTDOWN, 1);
 
   clear_matrix();
+
+
   update_matrix();
 }
 
 void clear_cell_board(CellState board[][BOARD_SIZE]) {
+
   for (uint8_t y = 0; y < BOARD_SIZE; y++) {
     for (uint8_t x = 0; x < BOARD_SIZE; x++) {
       board[y][x] = CELL_EMPTY;
@@ -174,8 +185,10 @@ uint8_t count_remaining_ships(CellState board[][BOARD_SIZE]) {
 }
 
 void start_new_game() {
+
   clear_cell_board(player1_board);
   clear_cell_board(player2_board);
+
   clear_shot_board(player1_shots);
   clear_shot_board(player2_shots);
 
@@ -197,6 +210,7 @@ uint8_t cell_base_y(uint8_t cell_y) {
 }
 
 void draw_cell_pattern(uint8_t base_x, uint8_t base_y, CellState state, bool cursor_here) {
+  
   bool p00 = false, p10 = false, p01 = false, p11 = false;
 
   switch (state) {
@@ -249,6 +263,8 @@ void draw_shot_pattern(uint8_t base_x, uint8_t base_y, ShotState shot, bool curs
   set_pixel(base_y, base_x + 1, p10);
   set_pixel(base_y + 1, base_x, p01);
   set_pixel(base_y + 1, base_x + 1, p11);
+
+
 }
 
 void draw_turn_marker() {
@@ -271,6 +287,7 @@ void render_game() {
   clear_matrix();
 
   for (uint8_t y = 0; y < BOARD_SIZE; y++) {
+
     for (uint8_t x = 0; x < BOARD_SIZE; x++) {
       uint8_t py = cell_base_y(y);
 
@@ -288,6 +305,9 @@ void render_game() {
       draw_shot_pattern(p1_shots_x, py, player1_shots[y][x], p1_cursor);
       draw_shot_pattern(p2_shots_x, py, player2_shots[y][x], p2_cursor);
     }
+
+
+
   }
 
   draw_turn_marker();
@@ -295,6 +315,7 @@ void render_game() {
 }
 
 bool button_pressed() {
+
   static bool last_state = HIGH;
   bool current = digitalRead(JOY_SW_PIN);
   bool pressed = (last_state == HIGH && current == LOW);
@@ -303,12 +324,17 @@ bool button_pressed() {
 }
 
 int8_t axis_direction(int value) {
+
   if (value < 300) return -1;
+
   if (value > 700) return 1;
+
+
   return 0;
 }
 
 void update_cursor_from_joystick() {
+
   unsigned long now = millis();
   if (now - last_move_at < MOVE_REPEAT_MS) return;
 
@@ -336,7 +362,9 @@ void update_cursor_from_joystick() {
 }
 
 void fire_shot_for_player(uint8_t attacker) {
+
   ShotState (*attacker_shots)[BOARD_SIZE] = (attacker == 1) ? player1_shots : player2_shots;
+  
   CellState (*defender_board)[BOARD_SIZE] = (attacker == 1) ? player2_board : player1_board;
 
   ShotState &shot = attacker_shots[cursor_y][cursor_x];
@@ -347,6 +375,7 @@ void fire_shot_for_player(uint8_t attacker) {
     target = CELL_HIT;
     shot = SHOT_HIT;
   } else {
+
     if (target == CELL_EMPTY) target = CELL_MISS;
     shot = SHOT_MISS;
   }
@@ -380,7 +409,10 @@ void show_start_screen() {
     set_pixel(y, ORIGIN_P2_SHOTS + 6, true);
     set_pixel(y, ORIGIN_P2_BOARD + 1, true);
     set_pixel(y, ORIGIN_P2_BOARD + 6, true);
+
   }
+
+
 
   for (uint8_t x = 1; x < 7; x++) {
     set_pixel(1, ORIGIN_P1_BOARD + x, true);
@@ -410,12 +442,15 @@ void setup() {
   randomSeed(analogRead(A0) + analogRead(A1) + micros());
 }
 
+
 void loop() {
   update_blink();
 
   if (game_state == STATE_START) {
+
     show_start_screen();
     if (button_pressed()) start_new_game();
+
     return;
   }
 
