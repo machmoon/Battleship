@@ -9,6 +9,8 @@
 #define JOY_X_PIN A0
 #define JOY_Y_PIN A1
 #define JOY_SW_PIN A2
+#define MAIN_BTN_PIN 2
+#define BUZZER_PIN 7
 
 const uint8_t REG_DIGIT0 = 0x01;
 const uint8_t REG_DECODE_MODE = 0x09;
@@ -25,7 +27,14 @@ uint8_t matrix_rows[8][DEVICE_COUNT];
 bool blink_on = true;
 unsigned long last_blink_at = 0;
 unsigned long last_move_at = 0;
-bool last_button_down = false;
+bool last_joy_button_down = false;
+bool last_main_button_down = false;
+
+bool console_powered = false;
+
+unsigned long last_music_note_at = 0;
+uint8_t menu_music_idx = 0;
+bool menu_music_active = false;
 
 enum ConsoleState : uint8_t {
   STATE_BOOT = 0,
@@ -109,7 +118,7 @@ uint16_t react_score = 0;
 bool react_game_over = false;
 
 // ---------- parkour ----------
-uint8_t park_cols[32]; // 0 means gap, else first solid y (fill to 7)
+uint8_t park_cols[32];
 int8_t park_player_y = 5;
 int8_t park_player_vy = 0;
 bool park_game_over = false;
@@ -138,9 +147,7 @@ void send_row(uint8_t reg, const uint8_t data_by_device[DEVICE_COUNT]) {
 
 void clear_matrix() {
   for (uint8_t y = 0; y < 8; y++) {
-    for (uint8_t d = 0; d < DEVICE_COUNT; d++) {
-      matrix_rows[y][d] = 0;
-    }
+    for (uint8_t d = 0; d < DEVICE_COUNT; d++) matrix_rows[y][d] = 0;
   }
 }
 
@@ -170,19 +177,36 @@ void max7219_init() {
   update_matrix();
 }
 
+void tone_click() {
+  tone(BUZZER_PIN, 1650, 20);
+  delay(24);
+  tone(BUZZER_PIN, 2200, 22);
+}
+
+bool joy_button_edge() {
+  bool down = (digitalRead(JOY_SW_PIN) == LOW);
+  bool edge = (down && !last_joy_button_down);
+  last_joy_button_down = down;
+  return edge;
+}
+
+bool main_button_edge() {
+  bool down = (digitalRead(MAIN_BTN_PIN) == LOW);
+  bool edge = (down && !last_main_button_down);
+  last_main_button_down = down;
+  return edge;
+}
+
+bool action_edge() {
+  return joy_button_edge() || main_button_edge();
+}
+
 void update_blink() {
   unsigned long now = millis();
   if (now - last_blink_at >= BLINK_MS) {
     blink_on = !blink_on;
     last_blink_at = now;
   }
-}
-
-bool button_edge() {
-  bool down = (digitalRead(JOY_SW_PIN) == LOW);
-  bool edge = (down && !last_button_down);
-  last_button_down = down;
-  return edge;
 }
 
 int8_t joy_dir_x() {
@@ -264,20 +288,66 @@ void draw_text_center(const char* text) {
   }
 }
 
+void update_menu_music() {
+  static const uint16_t notes[] = {392, 440, 523, 587, 523, 440, 392, 330, 392, 440, 523, 659};
+  static const uint16_t lens[]  = {170, 170, 220, 220, 170, 170, 250, 260, 170, 170, 220, 320};
+
+  unsigned long now = millis();
+  if (!menu_music_active) {
+    menu_music_active = true;
+    menu_music_idx = 0;
+    last_music_note_at = now;
+    tone(BUZZER_PIN, notes[menu_music_idx], lens[menu_music_idx]);
+    return;
+  }
+
+  if (now - last_music_note_at >= lens[menu_music_idx] + 25) {
+    menu_music_idx++;
+    if (menu_music_idx >= (sizeof(notes) / sizeof(notes[0]))) menu_music_idx = 0;
+    tone(BUZZER_PIN, notes[menu_music_idx], lens[menu_music_idx]);
+    last_music_note_at = now;
+  }
+}
+
 void draw_boot() {
   unsigned long t = millis() - boot_started_at;
   clear_matrix();
 
-  for (uint8_t x = 0; x < 32; x++) {
-    uint8_t y = (uint8_t)(3 + ((x + (t / 80)) % 3));
-    set_pixel(y, x, true);
-  }
-  if (t > 900) {
-    for (uint8_t x = 8; x < 24; x++) set_pixel(0, x, true);
+  if (t < 900) {
+    uint8_t head = (uint8_t)((t / 30) % 32);
+    for (uint8_t i = 0; i < 10; i++) {
+      int8_t x = (int8_t)head - i;
+      if (x < 0) x += 32;
+      uint8_t y = (uint8_t)((x + i) % 8);
+      set_pixel(y, x, true);
+    }
+    if (t < 120) tone(BUZZER_PIN, 784, 90);
+    else if (t < 260) tone(BUZZER_PIN, 988, 90);
+    else if (t < 420) tone(BUZZER_PIN, 1175, 120);
+  } else if (t < 1900) {
+    uint8_t r = (uint8_t)((t / 140) % 4);
+    for (uint8_t x = r; x < 32 - r; x++) {
+      set_pixel(r, x, true);
+      set_pixel(7 - r, x, true);
+    }
+    for (uint8_t y = r; y < 8 - r; y++) {
+      set_pixel(y, r * 4, true);
+      set_pixel(y, 31 - r * 4, true);
+    }
+    if (t > 1250 && t < 1370) tone(BUZZER_PIN, 1319, 110);
+    if (t > 1550 && t < 1670) tone(BUZZER_PIN, 1568, 120);
+  } else {
+    draw_text_center("SBII");
+    if ((t > 1950 && t < 2060) || (t > 2140 && t < 2260)) tone(BUZZER_PIN, 1760, 100);
   }
 
   update_matrix();
-  if (t > 2200) console_state = STATE_MENU;
+  if (t > 2600) {
+    noTone(BUZZER_PIN);
+    console_state = STATE_MENU;
+    menu_music_active = false;
+    menu_music_idx = 0;
+  }
 }
 
 void draw_menu() {
@@ -341,9 +411,7 @@ void start_battleship() {
 uint8_t remaining_ships(CellState b[][B_SIZE]) {
   uint8_t n = 0;
   for (uint8_t y = 0; y < B_SIZE; y++) {
-    for (uint8_t x = 0; x < B_SIZE; x++) {
-      if (b[y][x] == CELL_SHIP) n++;
-    }
+    for (uint8_t x = 0; x < B_SIZE; x++) if (b[y][x] == CELL_SHIP) n++;
   }
   return n;
 }
@@ -401,7 +469,6 @@ void draw_battleship() {
   if (b_game_over && blink_on) {
     for (uint8_t x = 24; x < 32; x++) set_pixel(b_player_won ? 3 : 4, x, true);
   }
-
   update_matrix();
 }
 
@@ -414,7 +481,8 @@ void update_battleship() {
       if (dy != 0) b_cursor_y = (uint8_t)constrain((int)b_cursor_y + dy, 0, (int)B_SIZE - 1);
     }
 
-    if (button_edge() && player_shots[b_cursor_y][b_cursor_x] == CELL_EMPTY) {
+    if (action_edge() && player_shots[b_cursor_y][b_cursor_x] == CELL_EMPTY) {
+      tone_click();
       if (enemy_board[b_cursor_y][b_cursor_x] == CELL_SHIP) {
         enemy_board[b_cursor_y][b_cursor_x] = CELL_HIT;
         player_shots[b_cursor_y][b_cursor_x] = CELL_HIT;
@@ -433,8 +501,10 @@ void update_battleship() {
         }
       }
     }
-  } else if (button_edge()) {
+  } else if (action_edge()) {
+    tone_click();
     console_state = STATE_MENU;
+    menu_music_active = false;
     return;
   }
 
@@ -515,8 +585,10 @@ void update_snake() {
         }
       }
     }
-  } else if (button_edge()) {
+  } else if (action_edge()) {
+    tone_click();
     console_state = STATE_MENU;
+    menu_music_active = false;
     return;
   }
 
@@ -535,10 +607,9 @@ void start_dino() {
 
 void draw_dino() {
   clear_matrix();
-
-  for (uint8_t x = 0; x < 32; x++) set_pixel(7, x, true); // ground
+  for (uint8_t x = 0; x < 32; x++) set_pixel(7, x, true);
   set_pixel(dino_y, 4, true);
-  set_pixel(dino_y - 1, 4, true);
+  if (dino_y > 0) set_pixel(dino_y - 1, 4, true);
 
   for (uint8_t x = 0; x < 32; x++) {
     if (dino_obs[x]) {
@@ -549,35 +620,36 @@ void draw_dino() {
 
   uint8_t bars = (uint8_t)min((int)(dino_score / 10), 8);
   for (uint8_t i = 0; i < bars; i++) set_pixel(0, i, true);
-
   if (dino_game_over && blink_on) for (uint8_t x = 10; x < 22; x++) set_pixel(0, x, true);
   update_matrix();
 }
 
 void update_dino() {
   if (!dino_game_over) {
-    if (button_edge() && dino_y >= 6) {
+    if (action_edge() && dino_y >= 6) {
       dino_vy = -3;
+      tone_click();
     }
 
     unsigned long now = millis();
     if (now - dino_last_step_at >= DINO_STEP_MS) {
       dino_last_step_at = now;
-
       for (uint8_t x = 0; x < 31; x++) dino_obs[x] = dino_obs[x + 1];
       dino_obs[31] = (random(0, 100) < 22);
 
       dino_y += dino_vy;
       dino_vy += 1;
       if (dino_y > 6) { dino_y = 6; dino_vy = 0; }
-      if (dino_y < 2) { dino_y = 2; }
+      if (dino_y < 2) dino_y = 2;
 
       bool hit = dino_obs[4] && (dino_y >= 5);
       if (hit) dino_game_over = true;
       else dino_score++;
     }
-  } else if (button_edge()) {
+  } else if (action_edge()) {
+    tone_click();
     console_state = STATE_MENU;
+    menu_music_active = false;
     return;
   }
 
@@ -606,8 +678,6 @@ void surf_spawn() {
 
 void draw_surf() {
   clear_matrix();
-
-  // lane guides
   for (uint8_t x = 0; x < 32; x += 2) {
     set_pixel(2, x, true);
     set_pixel(4, x, true);
@@ -625,7 +695,6 @@ void draw_surf() {
 
   uint8_t bars = (uint8_t)min((int)(surf_score / 12), 8);
   for (uint8_t i = 0; i < bars; i++) set_pixel(0, i, true);
-
   if (surf_game_over && blink_on) for (uint8_t x = 10; x < 22; x++) set_pixel(7, x, true);
   update_matrix();
 }
@@ -641,7 +710,6 @@ void update_surf() {
     unsigned long now = millis();
     if (now - surf_last_step_at >= SURF_STEP_MS) {
       surf_last_step_at = now;
-
       for (uint8_t i = 0; i < SURF_MAX_OBS; i++) {
         if (!surf_obs[i].active) continue;
         surf_obs[i].x--;
@@ -652,15 +720,15 @@ void update_surf() {
 
       for (uint8_t i = 0; i < SURF_MAX_OBS; i++) {
         if (!surf_obs[i].active) continue;
-        if (surf_obs[i].x == 4 && surf_obs[i].lane == surf_lane) {
-          surf_game_over = true;
-        }
+        if (surf_obs[i].x == 4 && surf_obs[i].lane == surf_lane) surf_game_over = true;
       }
 
       if (!surf_game_over) surf_score++;
     }
-  } else if (button_edge()) {
+  } else if (action_edge()) {
+    tone_click();
     console_state = STATE_MENU;
+    menu_music_active = false;
     return;
   }
 
@@ -682,7 +750,6 @@ void start_react() {
 }
 
 void draw_react_arrow(int8_t dir) {
-  // dir: 0 up, 1 right, 2 down, 3 left
   int8_t cx = 16;
   int8_t cy = 3;
   if (dir == 0) {
@@ -725,17 +792,17 @@ void update_react() {
     if (got >= 0) {
       if (got == react_target) {
         react_score++;
+        tone_click();
         react_next_round();
       } else {
         react_game_over = true;
       }
     }
-
-    if ((millis() - react_round_at) > react_window_ms) {
-      react_game_over = true;
-    }
-  } else if (button_edge()) {
+    if ((millis() - react_round_at) > react_window_ms) react_game_over = true;
+  } else if (action_edge()) {
+    tone_click();
     console_state = STATE_MENU;
+    menu_music_active = false;
     return;
   }
 
@@ -750,16 +817,11 @@ void start_parkour() {
   park_score = 0;
   park_last_step_at = millis();
   park_gen_h = 6;
-
-  for (uint8_t x = 0; x < 32; x++) {
-    park_cols[x] = 6;
-  }
+  for (uint8_t x = 0; x < 32; x++) park_cols[x] = 6;
 }
 
 void park_shift_left() {
-  for (uint8_t x = 0; x < 31; x++) {
-    park_cols[x] = park_cols[x + 1];
-  }
+  for (uint8_t x = 0; x < 31; x++) park_cols[x] = park_cols[x + 1];
 }
 
 void park_spawn_col() {
@@ -778,13 +840,10 @@ void park_spawn_col() {
 
 void draw_parkour() {
   clear_matrix();
-
   for (uint8_t x = 0; x < 32; x++) {
     uint8_t h = park_cols[x];
     if (h == 0) continue;
-    for (uint8_t y = h; y < 8; y++) {
-      set_pixel(y, x, true);
-    }
+    for (uint8_t y = h; y < 8; y++) set_pixel(y, x, true);
   }
 
   set_pixel(park_player_y, 4, true);
@@ -792,10 +851,7 @@ void draw_parkour() {
 
   uint8_t bars = (uint8_t)min((int)(park_score / 12), 8);
   for (uint8_t i = 0; i < bars; i++) set_pixel(0, i, true);
-
-  if (park_game_over && blink_on) {
-    for (uint8_t x = 10; x < 22; x++) set_pixel(0, x, true);
-  }
+  if (park_game_over && blink_on) for (uint8_t x = 10; x < 22; x++) set_pixel(0, x, true);
 
   update_matrix();
 }
@@ -806,8 +862,9 @@ void update_parkour() {
     int8_t stand_y = (ground_h == 0) ? 7 : (int8_t)ground_h - 1;
     bool on_ground = (ground_h != 0 && park_player_y >= stand_y && park_player_vy >= 0);
 
-    if ((button_edge() || joy_dir_y() < 0) && on_ground) {
+    if ((action_edge() || joy_dir_y() < 0) && on_ground) {
       park_player_vy = -3;
+      tone_click();
     }
 
     unsigned long now = millis();
@@ -829,14 +886,13 @@ void update_parkour() {
         park_player_vy = 0;
       }
 
-      if (ground_h == 0 && park_player_y >= 7) {
-        park_game_over = true;
-      }
-
+      if (ground_h == 0 && park_player_y >= 7) park_game_over = true;
       if (!park_game_over) park_score++;
     }
-  } else if (button_edge()) {
+  } else if (action_edge()) {
+    tone_click();
     console_state = STATE_MENU;
+    menu_music_active = false;
     return;
   }
 
@@ -844,14 +900,39 @@ void update_parkour() {
 }
 
 void setup() {
+  pinMode(MAIN_BTN_PIN, INPUT_PULLUP);
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
+  pinMode(BUZZER_PIN, OUTPUT);
+
   max7219_init();
   randomSeed(analogRead(A3));
-  boot_started_at = millis();
+
+  console_powered = false;
+  console_state = STATE_BOOT;
+  clear_matrix();
+  update_matrix();
 }
 
 void loop() {
   update_blink();
+
+  if (!console_powered) {
+    clear_matrix();
+    if (blink_on) {
+      set_pixel(2, 15, true); set_pixel(2, 16, true);
+      set_pixel(3, 14, true); set_pixel(3, 17, true);
+      set_pixel(4, 14, true); set_pixel(4, 17, true);
+      set_pixel(5, 15, true); set_pixel(5, 16, true);
+    }
+    update_matrix();
+
+    if (main_button_edge()) {
+      console_powered = true;
+      boot_started_at = millis();
+      console_state = STATE_BOOT;
+    }
+    return;
+  }
 
   if (console_state == STATE_BOOT) {
     draw_boot();
@@ -859,15 +940,24 @@ void loop() {
   }
 
   if (console_state == STATE_MENU) {
+    update_menu_music();
+
     if (can_move_now()) {
       int8_t dx = joy_dir_x();
       if (dx != 0) {
         int8_t next = (int8_t)menu_index + dx;
-        if (next >= 0 && next < MENU_COUNT) menu_index = (uint8_t)next;
+        if (next >= 0 && next < MENU_COUNT) {
+          menu_index = (uint8_t)next;
+          tone_click();
+        }
       }
     }
 
-    if (button_edge()) {
+    if (action_edge()) {
+      tone_click();
+      noTone(BUZZER_PIN);
+      menu_music_active = false;
+
       if (menu_index == 0) { start_battleship(); console_state = STATE_BATTLESHIP; }
       else if (menu_index == 1) { start_snake(); console_state = STATE_SNAKE; }
       else if (menu_index == 2) { start_dino(); console_state = STATE_DINO; }
