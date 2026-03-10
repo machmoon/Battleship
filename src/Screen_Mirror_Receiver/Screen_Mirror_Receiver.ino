@@ -1,6 +1,7 @@
 #include <SPI.h>
+#include <string.h>
 
-#define DEVICE_COUNT 4
+#define DEVICE_COUNT 8
 #define DIN_PIN 11
 #define CLK_PIN 13
 #define CS_PIN 10
@@ -13,7 +14,7 @@ const uint8_t REG_SHUTDOWN = 0x0C;
 const uint8_t REG_DISPLAY_TEST = 0x0F;
 
 uint8_t matrix_rows[8][DEVICE_COUNT];
-char line_buf[80];
+char line_buf[150];
 uint8_t line_len = 0;
 
 void send_all(uint8_t reg, uint8_t data) {
@@ -52,17 +53,36 @@ uint8_t hex_nibble(char c) {
 }
 
 void parse_frame_line(char* s) {
-  // expected: F,<64 hex chars>
+  // expected:
+  // F,<64 hex chars>  -> 32x8 frame, mirrored to both panels
+  // F,<128 hex chars> -> direct 64x8 row-by-row payload
   if (s[0] != 'F' || s[1] != ',') return;
+  uint8_t payload_len = (uint8_t)strlen(s + 2);
 
-  uint8_t idx = 2;
-  for (uint8_t y = 0; y < 8; y++) {
-    for (uint8_t d = 0; d < 4; d++) {
-      char h = s[idx++];
-      char l = s[idx++];
-      if (h == 0 || l == 0) return;
-      matrix_rows[y][d] = (uint8_t)((hex_nibble(h) << 4) | hex_nibble(l));
+  if (payload_len == 64) {
+    uint8_t idx = 2;
+    for (uint8_t y = 0; y < 8; y++) {
+      for (uint8_t d = 0; d < 4; d++) {
+        char h = s[idx++];
+        char l = s[idx++];
+        if (h == 0 || l == 0) return;
+        uint8_t b = (uint8_t)((hex_nibble(h) << 4) | hex_nibble(l));
+        matrix_rows[y][d] = b;
+        if (DEVICE_COUNT >= 8) matrix_rows[y][d + 4] = b;
+      }
     }
+  } else if (payload_len == 128 && DEVICE_COUNT >= 8) {
+    uint8_t idx = 2;
+    for (uint8_t y = 0; y < 8; y++) {
+      for (uint8_t d = 0; d < 8; d++) {
+        char h = s[idx++];
+        char l = s[idx++];
+        if (h == 0 || l == 0) return;
+        matrix_rows[y][d] = (uint8_t)((hex_nibble(h) << 4) | hex_nibble(l));
+      }
+    }
+  } else {
+    return;
   }
 
   update_matrix();

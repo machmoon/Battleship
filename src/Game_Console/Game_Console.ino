@@ -1,7 +1,7 @@
 #include <SPI.h>
 #include <string.h>
 
-#define DEVICE_COUNT 4
+#define DEVICE_COUNT 8
 #define DIN_PIN 11
 #define CLK_PIN 13
 #define CS_PIN 10
@@ -18,6 +18,11 @@ const uint8_t REG_INTENSITY = 0x0A;
 const uint8_t REG_SCAN_LIMIT = 0x0B;
 const uint8_t REG_SHUTDOWN = 0x0C;
 const uint8_t REG_DISPLAY_TEST = 0x0F;
+
+// Logical game surface stays 32x8.
+// With two chained 4-in-1 modules (DEVICE_COUNT=8), mirror output to both.
+const uint8_t LOGICAL_WIDTH = 32;
+const bool MIRROR_TO_SECOND_PANEL = true;
 
 const uint16_t MOVE_REPEAT_MS = 150;
 const uint16_t BLINK_MS = 220;
@@ -156,12 +161,21 @@ void update_matrix() {
 }
 
 void set_pixel(int8_t y, int8_t x, bool on) {
-  if (x < 0 || x >= 32 || y < 0 || y >= 8) return;
+  if (x < 0 || x >= LOGICAL_WIDTH || y < 0 || y >= 8) return;
   uint8_t dev = (uint8_t)x / 8;
   uint8_t col = (uint8_t)x % 8;
   uint8_t mask = (uint8_t)(1 << (7 - col));
   if (on) matrix_rows[y][dev] |= mask;
   else matrix_rows[y][dev] &= (uint8_t)~mask;
+
+  if (MIRROR_TO_SECOND_PANEL && DEVICE_COUNT >= 8) {
+    uint8_t mx = (uint8_t)(x + LOGICAL_WIDTH);
+    uint8_t mdev = mx / 8;
+    if (mdev < DEVICE_COUNT) {
+      if (on) matrix_rows[y][mdev] |= mask;
+      else matrix_rows[y][mdev] &= (uint8_t)~mask;
+    }
+  }
 }
 
 void max7219_init() {
@@ -273,14 +287,14 @@ uint8_t char_col(char ch, uint8_t col) {
 void draw_text_center(const char* text) {
   uint8_t len = (uint8_t)strlen(text);
   uint8_t total_w = len * 6;
-  int8_t start_x = (32 - total_w) / 2;
+  int8_t start_x = (LOGICAL_WIDTH - total_w) / 2;
   if (start_x < 0) start_x = 0;
 
   for (uint8_t i = 0; i < len; i++) {
     for (uint8_t c = 0; c < 5; c++) {
       uint8_t bits = char_col(text[i], c);
       int8_t x = start_x + i * 6 + c;
-      if (x < 0 || x >= 32) continue;
+      if (x < 0 || x >= LOGICAL_WIDTH) continue;
       for (uint8_t y = 0; y < 7; y++) {
         if (bits & (1 << y)) set_pixel(y, x, true);
       }
@@ -314,10 +328,10 @@ void draw_boot() {
   clear_matrix();
 
   if (t < 900) {
-    uint8_t head = (uint8_t)((t / 30) % 32);
+    uint8_t head = (uint8_t)((t / 30) % LOGICAL_WIDTH);
     for (uint8_t i = 0; i < 10; i++) {
       int8_t x = (int8_t)head - i;
-      if (x < 0) x += 32;
+      if (x < 0) x += LOGICAL_WIDTH;
       uint8_t y = (uint8_t)((x + i) % 8);
       set_pixel(y, x, true);
     }
@@ -326,13 +340,13 @@ void draw_boot() {
     else if (t < 420) tone(BUZZER_PIN, 1175, 120);
   } else if (t < 1900) {
     uint8_t r = (uint8_t)((t / 140) % 4);
-    for (uint8_t x = r; x < 32 - r; x++) {
+    for (uint8_t x = r; x < LOGICAL_WIDTH - r; x++) {
       set_pixel(r, x, true);
       set_pixel(7 - r, x, true);
     }
     for (uint8_t y = r; y < 8 - r; y++) {
       set_pixel(y, r * 4, true);
-      set_pixel(y, 31 - r * 4, true);
+      set_pixel(y, (LOGICAL_WIDTH - 1) - r * 4, true);
     }
     if (t > 1250 && t < 1370) tone(BUZZER_PIN, 1319, 110);
     if (t > 1550 && t < 1670) tone(BUZZER_PIN, 1568, 120);
@@ -467,7 +481,7 @@ void draw_battleship() {
   for (uint8_t i = 0; i < p; i++) set_pixel(7, 24 + i, true);
 
   if (b_game_over && blink_on) {
-    for (uint8_t x = 24; x < 32; x++) set_pixel(b_player_won ? 3 : 4, x, true);
+    for (uint8_t x = 24; x < LOGICAL_WIDTH; x++) set_pixel(b_player_won ? 3 : 4, x, true);
   }
   update_matrix();
 }
@@ -521,7 +535,7 @@ bool snake_has(int8_t x, int8_t y) {
 
 void snake_spawn_food() {
   for (uint8_t t = 0; t < 90; t++) {
-    int8_t x = random(0, 32);
+    int8_t x = random(0, LOGICAL_WIDTH);
     int8_t y = random(0, 8);
     if (!snake_has(x, y)) {
       s_food_x = x;
@@ -568,7 +582,7 @@ void update_snake() {
       int8_t nx = s_x[0] + s_dx;
       int8_t ny = s_y[0] + s_dy;
 
-      if (nx < 0 || nx >= 32 || ny < 0 || ny >= 8 || snake_has(nx, ny)) {
+      if (nx < 0 || nx >= LOGICAL_WIDTH || ny < 0 || ny >= 8 || snake_has(nx, ny)) {
         s_game_over = true;
       } else {
         for (int8_t i = (int8_t)s_len; i > 0; i--) {
@@ -601,17 +615,17 @@ void start_dino() {
   dino_vy = 0;
   dino_game_over = false;
   dino_score = 0;
-  for (uint8_t x = 0; x < 32; x++) dino_obs[x] = false;
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) dino_obs[x] = false;
   dino_last_step_at = millis();
 }
 
 void draw_dino() {
   clear_matrix();
-  for (uint8_t x = 0; x < 32; x++) set_pixel(7, x, true);
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) set_pixel(7, x, true);
   set_pixel(dino_y, 4, true);
   if (dino_y > 0) set_pixel(dino_y - 1, 4, true);
 
-  for (uint8_t x = 0; x < 32; x++) {
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) {
     if (dino_obs[x]) {
       set_pixel(6, x, true);
       set_pixel(5, x, true);
@@ -669,7 +683,7 @@ void surf_spawn() {
   for (uint8_t i = 0; i < SURF_MAX_OBS; i++) {
     if (!surf_obs[i].active) {
       surf_obs[i].active = true;
-      surf_obs[i].x = 31;
+      surf_obs[i].x = LOGICAL_WIDTH - 1;
       surf_obs[i].lane = random(0, 3);
       return;
     }
@@ -678,7 +692,7 @@ void surf_spawn() {
 
 void draw_surf() {
   clear_matrix();
-  for (uint8_t x = 0; x < 32; x += 2) {
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x += 2) {
     set_pixel(2, x, true);
     set_pixel(4, x, true);
   }
@@ -780,7 +794,7 @@ void draw_react() {
 
   uint16_t elapsed = (uint16_t)(millis() - react_round_at);
   uint8_t time_bar = (elapsed >= react_window_ms) ? 0 : (uint8_t)(8 - (elapsed * 8 / react_window_ms));
-  for (uint8_t i = 0; i < time_bar; i++) set_pixel(7, 31 - i, true);
+  for (uint8_t i = 0; i < time_bar; i++) set_pixel(7, (LOGICAL_WIDTH - 1) - i, true);
 
   if (react_game_over && blink_on) for (uint8_t x = 10; x < 22; x++) set_pixel(0, x, true);
   update_matrix();
@@ -817,7 +831,7 @@ void start_parkour() {
   park_score = 0;
   park_last_step_at = millis();
   park_gen_h = 6;
-  for (uint8_t x = 0; x < 32; x++) park_cols[x] = 6;
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) park_cols[x] = 6;
 }
 
 void park_shift_left() {
@@ -826,7 +840,7 @@ void park_shift_left() {
 
 void park_spawn_col() {
   if (random(0, 100) < 18) {
-    park_cols[31] = 0;
+    park_cols[LOGICAL_WIDTH - 1] = 0;
     return;
   }
 
@@ -835,12 +849,12 @@ void park_spawn_col() {
   if (nh < 4) nh = 4;
   if (nh > 7) nh = 7;
   park_gen_h = (uint8_t)nh;
-  park_cols[31] = park_gen_h;
+  park_cols[LOGICAL_WIDTH - 1] = park_gen_h;
 }
 
 void draw_parkour() {
   clear_matrix();
-  for (uint8_t x = 0; x < 32; x++) {
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) {
     uint8_t h = park_cols[x];
     if (h == 0) continue;
     for (uint8_t y = h; y < 8; y++) set_pixel(y, x, true);

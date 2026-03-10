@@ -3,7 +3,7 @@
 #include <MD_MAX72xx.h>
 
 // Hardware pins and display setup
-#define DEVICE_COUNT 4
+#define DEVICE_COUNT 8
 #define DIN_PIN 11
 #define CLK_PIN 13
 #define CS_PIN 10
@@ -84,6 +84,9 @@ const uint8_t REG_SCAN_LIMIT = 0x0B;
 const uint8_t REG_SHUTDOWN = 0x0C;
 const uint8_t REG_DISPLAY_TEST = 0x0F;
 
+const uint8_t LOGICAL_WIDTH = 32;
+const bool MIRROR_TO_SECOND_PANEL = true;
+
 void send_all(uint8_t reg, uint8_t data) {
 
   digitalWrite(CS_PIN, LOW);
@@ -124,7 +127,7 @@ void update_matrix() {
 }
 
 void set_pixel(uint8_t y, uint8_t x, bool on) {
-  if (x >= 32 || y >= 8) return;
+  if (x >= LOGICAL_WIDTH || y >= 8) return;
 
   uint8_t draw_x = FLIP_X ? (31 - x) : x;
   uint8_t draw_y = FLIP_Y ? (7 - y) : y;
@@ -135,6 +138,15 @@ void set_pixel(uint8_t y, uint8_t x, bool on) {
 
   if (on) matrix_rows[draw_y][dev] |= bit_mask;
   else matrix_rows[draw_y][dev] &= (uint8_t)~bit_mask;
+
+  if (MIRROR_TO_SECOND_PANEL && DEVICE_COUNT >= 8) {
+    uint8_t mx = (uint8_t)(draw_x + LOGICAL_WIDTH);
+    uint8_t mdev = mx / 8;
+    if (mdev < DEVICE_COUNT) {
+      if (on) matrix_rows[draw_y][mdev] |= bit_mask;
+      else matrix_rows[draw_y][mdev] &= (uint8_t)~bit_mask;
+    }
+  }
 }
 
 void max7219_init() {
