@@ -66,12 +66,39 @@ def play_file(path: str, wait: bool = False):
     return None
 
 
+def have_switch_audio_source() -> bool:
+    return subprocess.call(
+        ["which", "SwitchAudioSource"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ) == 0
+
+
+def list_output_devices():
+    if not have_switch_audio_source():
+        raise RuntimeError(
+            "SwitchAudioSource not found. Install with: brew install switchaudio-osx"
+        )
+    out = subprocess.check_output(["SwitchAudioSource", "-a", "-t", "output"], text=True)
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
+def set_output_device(name: str):
+    if not have_switch_audio_source():
+        raise RuntimeError(
+            "SwitchAudioSource not found. Install with: brew install switchaudio-osx"
+        )
+    subprocess.check_call(["SwitchAudioSource", "-s", name, "-t", "output"])
+
+
 def main():
     ap = argparse.ArgumentParser(description="Play laptop sounds from Arduino serial events")
     ap.add_argument("--port", help="Serial port (e.g., /dev/cu.usbmodem1101)")
     ap.add_argument("--baud", type=int, default=115200)
     ap.add_argument("--root", default="/Users/patliu/Desktop/Coding/Battleship", help="Project root with mp3 files")
     ap.add_argument("--list-ports", action="store_true", help="Print detected serial ports and exit")
+    ap.add_argument("--list-output-devices", action="store_true", help="List audio output devices and exit (macOS, SwitchAudioSource)")
+    ap.add_argument("--output-device", help="Audio output device name (macOS, SwitchAudioSource)")
     ap.add_argument("--test-event", help="Play one event immediately and exit (example: BATTLE_HIT)")
     ap.add_argument("--audio", type=int, choices=[0, 1, 2, 3], help="Play/stop audio command and exit (0=stop, 1..3=track)")
     ap.add_argument("--print-events", action="store_true", help="Print supported event names and exit")
@@ -138,6 +165,28 @@ def main():
             for p in ports:
                 print(f"  {p}")
         return
+
+    if args.list_output_devices:
+        try:
+            devices = list_output_devices()
+        except RuntimeError as e:
+            print(str(e))
+            return
+        print("Audio output devices:")
+        for d in devices:
+            print(f"  {d}")
+        return
+
+    if args.output_device:
+        try:
+            set_output_device(args.output_device)
+            print(f"Audio output device set to: {args.output_device}")
+        except RuntimeError as e:
+            print(str(e))
+            return
+        except subprocess.CalledProcessError:
+            print(f"Failed to set output device: {args.output_device}")
+            return
 
     missing = [k for k, p in sounds.items() if p and not os.path.exists(p)]
     if missing:

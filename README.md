@@ -107,6 +107,12 @@ Manual audio command examples:
 - `python3 tools/sound_bridge.py --audio 3`
 - `python3 tools/sound_bridge.py --audio 0` (stop/no-op and exit)
 
+Audio output devices (macOS):
+- Install helper: `brew install switchaudio-osx`
+- List devices: `python3 tools/sound_bridge.py --list-output-devices`
+- Set device: `python3 tools/sound_bridge.py --output-device \"MacBook Pro Speakers\"`
+- Set + run bridge: `python3 tools/sound_bridge.py --output-device \"MacBook Pro Speakers\" --port /dev/cu.usbmodemXXXX`
+
 When running continuously, it also accepts serial commands:
 - `AUDIO 1`, `AUDIO 2`, `AUDIO 3`, `AUDIO 0`
 
