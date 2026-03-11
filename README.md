@@ -101,6 +101,15 @@ Controls:
 If you want external PC sounds from serial events:
 - `python3 tools/sound_bridge.py`
 
+Manual audio command examples:
+- `python3 tools/sound_bridge.py --audio 1`
+- `python3 tools/sound_bridge.py --audio 2`
+- `python3 tools/sound_bridge.py --audio 3`
+- `python3 tools/sound_bridge.py --audio 0` (stop/no-op and exit)
+
+When running continuously, it also accepts serial commands:
+- `AUDIO 1`, `AUDIO 2`, `AUDIO 3`, `AUDIO 0`
+
 ## Optional Screen Mirror
 - Arduino receiver: `src/Screen_Mirror_Receiver/Screen_Mirror_Receiver.ino`
 - Sender:
