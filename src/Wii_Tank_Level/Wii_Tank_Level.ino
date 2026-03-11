@@ -3,7 +3,7 @@
 #include <math.h>
 
 // MAX7219 4-in-1 (32x8)
-#define DEVICE_COUNT 8
+#define DEVICE_COUNT 12
 #define DIN_PIN 11
 #define CLK_PIN 13
 #define CS_PIN 10
@@ -42,7 +42,7 @@ const uint8_t REG_SHUTDOWN = 0x0C;
 const uint8_t REG_DISPLAY_TEST = 0x0F;
 
 const uint8_t LOGICAL_WIDTH = 32;
-const bool MIRROR_TO_SECOND_PANEL = true;
+const uint8_t LOGICAL_HEIGHT = 8;
 
 enum GameState : uint8_t {
   STATE_INTRO = 0,
@@ -130,7 +130,7 @@ void update_matrix() {
 }
 
 void set_pixel(int8_t y, int8_t x, bool on) {
-  if (x < 0 || x >= LOGICAL_WIDTH || y < 0 || y >= 8) return;
+  if (x < 0 || x >= LOGICAL_WIDTH || y < 0 || y >= LOGICAL_HEIGHT) return;
 
   uint8_t draw_x = FLIP_X ? (31 - x) : x;
   uint8_t draw_y = FLIP_Y ? (7 - y) : y;
@@ -141,15 +141,6 @@ void set_pixel(int8_t y, int8_t x, bool on) {
 
   if (on) matrix_rows[draw_y][dev] |= bit_mask;
   else matrix_rows[draw_y][dev] &= (uint8_t)~bit_mask;
-
-  if (MIRROR_TO_SECOND_PANEL && DEVICE_COUNT >= 8) {
-    uint8_t mx = (uint8_t)(draw_x + LOGICAL_WIDTH);
-    uint8_t mdev = mx / 8;
-    if (mdev < DEVICE_COUNT) {
-      if (on) matrix_rows[draw_y][mdev] |= bit_mask;
-      else matrix_rows[draw_y][mdev] &= (uint8_t)~bit_mask;
-    }
-  }
 }
 
 void max7219_init() {
@@ -189,7 +180,7 @@ bool mpu_read_accel(int16_t &ax, int16_t &ay, int16_t &az) {
 }
 
 bool in_bounds(int8_t x, int8_t y) {
-  return (x >= 0 && x < LOGICAL_WIDTH && y >= 0 && y < 8);
+  return (x >= 0 && x < LOGICAL_WIDTH && y >= 0 && y < LOGICAL_HEIGHT);
 }
 
 bool is_blocked(int8_t x, int8_t y) {
