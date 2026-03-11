@@ -90,12 +90,13 @@ Controls:
 ### Music Player
 - Enter from menu item `MUSC`.
 - Controller 1 up/down (`A1`) changes track.
-- Controller 1 button (`A5`) play/pause selected track.
+- Controller 1 button (`A5`) selects this song as **menu background music**.
 - Main button (`D2`) exits to menu.
 - Tracks:
   - `MINE` -> `C418 - Sweden - Minecraft.mp3`
   - `OWA` -> `Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3`
   - `LITE` -> `2hollis_-_light_(mp3.pm).mp3`
+ - After selecting, menu will use that song (`MENU_MUSIC_1/2/3`).
 
 ## Debugging
 - Open Serial Monitor at `115200` for debug snapshots/events.

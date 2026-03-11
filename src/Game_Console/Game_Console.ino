@@ -67,6 +67,7 @@ bool console_powered = false;
 
 bool menu_music_active = false;
 uint8_t menu_music_track = 0;
+uint8_t menu_music_choice = 0;
 unsigned long last_music_switch_at = 0;
 const uint16_t MENU_SWITCH_MS = 240;
 unsigned long last_debug_at = 0;
@@ -434,22 +435,22 @@ void draw_text_center(const char* text) {
 }
 
 void update_menu_music() {
+  if (menu_music_choice >= 3) menu_music_choice = 0;
   if (!menu_music_active) {
     menu_music_active = true;
-    menu_music_track = 0;
-    emit_event("MENU_MUSIC_1");
+    menu_music_track = menu_music_choice;
+    if (menu_music_track == 0) emit_event("MENU_MUSIC_1");
+    else if (menu_music_track == 1) emit_event("MENU_MUSIC_2");
+    else emit_event("MENU_MUSIC_3");
+    return;
   }
 
-  unsigned long now = millis();
-  if (now - last_music_switch_at < MENU_SWITCH_MS) return;
-  int8_t dy = joy_dir_y();
-  if (dy == 0) return;
-
-  last_music_switch_at = now;
-  menu_music_track = (menu_music_track == 0) ? 1 : 0;
-  if (menu_music_track == 0) emit_event("MENU_MUSIC_1");
-  else emit_event("MENU_MUSIC_2");
-  emit_event("MENU_CLICK");
+  if (menu_music_track != menu_music_choice) {
+    menu_music_track = menu_music_choice;
+    if (menu_music_track == 0) emit_event("MENU_MUSIC_1");
+    else if (menu_music_track == 1) emit_event("MENU_MUSIC_2");
+    else emit_event("MENU_MUSIC_3");
+  }
 }
 
 void menu_music_stop() {
@@ -1187,7 +1188,7 @@ void update_parkour() {
 }
 
 void start_music_player() {
-  music_track_idx = 0;
+  music_track_idx = menu_music_choice;
   music_playing = false;
   music_last_nav_at = 0;
   emit_event("MUSIC_STOP");
@@ -1207,6 +1208,7 @@ void draw_music_player() {
     bool on = (i == music_track_idx) ? true : blink_on;
     set_pixel(23, x, on);
     set_pixel(23, (uint8_t)(x + 1), on);
+    if (i == menu_music_choice) set_pixel(22, x, true);
   }
 
   if (music_playing) {
@@ -1242,9 +1244,9 @@ void update_music_player() {
       }
       emit_event("MUSIC_TRACK_CHANGE");
       if (music_playing) {
-        if (music_track_idx == 0) emit_event("MUSIC_PLAY_1");
-        else if (music_track_idx == 1) emit_event("MUSIC_PLAY_2");
-        else emit_event("MUSIC_PLAY_3");
+        if (music_track_idx == 0) emit_event("MENU_MUSIC_1");
+        else if (music_track_idx == 1) emit_event("MENU_MUSIC_2");
+        else emit_event("MENU_MUSIC_3");
       }
       tone_click();
     }
@@ -1253,12 +1255,12 @@ void update_music_player() {
   bool joy_press = joy_button_edge();
   bool main_press = main_button_edge();
   if (joy_press) {
-    music_playing = !music_playing;
-    if (!music_playing) emit_event("MUSIC_STOP");
-    else if (music_track_idx == 0) emit_event("MUSIC_PLAY_1");
-    else if (music_track_idx == 1) emit_event("MUSIC_PLAY_2");
-    else emit_event("MUSIC_PLAY_3");
-    emit_event(music_playing ? "MUSIC_PLAY" : "MUSIC_PAUSE");
+    music_playing = true;
+    menu_music_choice = music_track_idx;
+    if (menu_music_choice == 0) emit_event("MENU_MUSIC_1");
+    else if (menu_music_choice == 1) emit_event("MENU_MUSIC_2");
+    else emit_event("MENU_MUSIC_3");
+    emit_event("MUSIC_SELECT");
     tone_click();
   }
 

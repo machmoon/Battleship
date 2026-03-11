@@ -119,7 +119,8 @@ def main():
         "BOOT_START": os.path.join(root, "wii-startup-sound.mp3"),
         "MENU_CLICK": os.path.join(root, "wii---button-press-made-with-Voicemod.mp3"),
         "MENU_MUSIC_1": os.path.join(root, "C418 - Sweden - Minecraft.mp3"),
-        "MENU_MUSIC_2": os.path.join(root, "rickroll-made-with-Voicemod.mp3"),
+        "MENU_MUSIC_2": os.path.join(root, "Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3"),
+        "MENU_MUSIC_3": os.path.join(root, "2hollis_-_light_(mp3.pm).mp3"),
         "MENU_MUSIC_STOP": "",
         "MUSIC_PLAY_1": os.path.join(root, "C418 - Sweden - Minecraft.mp3"),
         "MUSIC_PLAY_2": os.path.join(root, "Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3"),
@@ -308,6 +309,8 @@ def main():
                         start_menu_music(sounds["MENU_MUSIC_1"])
                     elif line == "MENU_MUSIC_2":
                         start_menu_music(sounds["MENU_MUSIC_2"])
+                    elif line == "MENU_MUSIC_3":
+                        start_menu_music(sounds["MENU_MUSIC_3"])
                     elif line == "MUSIC_STOP":
                         stop_menu_music()
                     elif line == "MUSIC_PLAY_1":
