@@ -85,12 +85,17 @@ Controls:
 ### Snake / Dino / Surf / Reaction / Parkour
 - Controlled by Controller 1 (`A0/A1`, `A5`, `D2`).
 - Press action after game over to return to menu.
+- These games now use the full `32x24` display area.
 
 ### Music Player
 - Enter from menu item `MUSC`.
 - Controller 1 up/down (`A1`) changes track.
-- Controller 1 button (`A5`) play/pause.
+- Controller 1 button (`A5`) play/pause selected track.
 - Main button (`D2`) exits to menu.
+- Tracks:
+  - `MINE` -> `C418 - Sweden - Minecraft.mp3`
+  - `OWA` -> `Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3`
+  - `LITE` -> `2hollis_-_light_(mp3.pm).mp3`
 
 ## Debugging
 - Open Serial Monitor at `115200` for debug snapshots/events.
@@ -106,6 +111,7 @@ Manual audio command examples:
 - `python3 tools/sound_bridge.py --audio 2`
 - `python3 tools/sound_bridge.py --audio 3`
 - `python3 tools/sound_bridge.py --audio 0` (stop/no-op and exit)
+- `audio 1/2/3` now map to `Minecraft / OWA OWA / light`.
 
 Audio output devices (macOS):
 - Install helper: `brew install switchaudio-osx`

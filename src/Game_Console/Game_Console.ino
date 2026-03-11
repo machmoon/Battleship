@@ -122,7 +122,7 @@ const uint8_t BS_PHASE_P2_TURN = 3;
 const uint8_t BS_PHASE_GAME_OVER = 4;
 
 // ---------- snake ----------
-const uint8_t S_MAX = 80;
+const uint8_t S_MAX = 220;
 int8_t s_x[S_MAX];
 int8_t s_y[S_MAX];
 uint8_t s_len = 0;
@@ -178,33 +178,9 @@ const uint16_t PARK_STEP_MS = 100;
 uint8_t park_gen_h = 6;
 
 // ---------- music player ----------
-struct MusicNote {
-  uint16_t freq;
-  uint16_t dur_ms;
-};
-
-const MusicNote TRACK_0[] = {
-  {523, 170}, {659, 170}, {784, 220}, {659, 180}, {523, 200}, {0, 120}
-};
-const MusicNote TRACK_1[] = {
-  {392, 180}, {440, 180}, {523, 220}, {440, 180}, {392, 200}, {0, 130}
-};
-const MusicNote TRACK_2[] = {
-  {330, 140}, {392, 140}, {494, 180}, {392, 140}, {330, 180}, {262, 220}, {0, 120}
-};
-
-const MusicNote* const MUSIC_TRACKS[] = {TRACK_0, TRACK_1, TRACK_2};
-const uint8_t MUSIC_TRACK_LENGTHS[] = {
-  (uint8_t)(sizeof(TRACK_0) / sizeof(TRACK_0[0])),
-  (uint8_t)(sizeof(TRACK_1) / sizeof(TRACK_1[0])),
-  (uint8_t)(sizeof(TRACK_2) / sizeof(TRACK_2[0]))
-};
-const uint8_t MUSIC_TRACK_COUNT = (uint8_t)(sizeof(MUSIC_TRACKS) / sizeof(MUSIC_TRACKS[0]));
-
+const uint8_t MUSIC_TRACK_COUNT = 3;
 uint8_t music_track_idx = 0;
-uint8_t music_note_idx = 0;
 bool music_playing = false;
-unsigned long music_note_started_at = 0;
 unsigned long music_last_nav_at = 0;
 const uint16_t MUSIC_NAV_MS = 180;
 
@@ -796,7 +772,7 @@ bool snake_has(int8_t x, int8_t y) {
 void snake_spawn_food() {
   for (uint8_t t = 0; t < 90; t++) {
     int8_t x = random(0, LOGICAL_WIDTH);
-    int8_t y = random(0, 8);
+    int8_t y = random(0, LOGICAL_HEIGHT);
     if (!snake_has(x, y)) {
       s_food_x = x;
       s_food_y = y;
@@ -807,9 +783,11 @@ void snake_spawn_food() {
 
 void start_snake() {
   s_len = 5;
+  int8_t cx = (int8_t)(LOGICAL_WIDTH / 2);
+  int8_t cy = (int8_t)(LOGICAL_HEIGHT / 2);
   for (uint8_t i = 0; i < s_len; i++) {
-    s_x[i] = 8 - i;
-    s_y[i] = 3;
+    s_x[i] = cx - i;
+    s_y[i] = cy;
   }
   s_dx = 1;
   s_dy = 0;
@@ -824,7 +802,7 @@ void draw_snake() {
   clear_matrix();
   for (uint8_t i = 0; i < s_len; i++) set_pixel(s_y[i], s_x[i], true);
   if (blink_on) set_pixel(s_food_y, s_food_x, true);
-  if (s_game_over && blink_on) for (uint8_t x = 8; x < 24; x++) set_pixel(0, x, true);
+  if (s_game_over && blink_on) for (uint8_t x = 6; x < 26; x++) set_pixel((int8_t)(LOGICAL_HEIGHT / 2), x, true);
   update_matrix();
 }
 
@@ -843,7 +821,7 @@ void update_snake() {
       int8_t nx = s_x[0] + s_dx;
       int8_t ny = s_y[0] + s_dy;
 
-      if (nx < 0 || nx >= LOGICAL_WIDTH || ny < 0 || ny >= 8 || snake_has(nx, ny)) {
+      if (nx < 0 || nx >= LOGICAL_WIDTH || ny < 0 || ny >= LOGICAL_HEIGHT || snake_has(nx, ny)) {
         s_game_over = true;
         s_player_won = false;
         emit_event("SNAKE_FAIL");
@@ -879,7 +857,7 @@ void update_snake() {
 
 // -------------------- dino jump --------------------
 void start_dino() {
-  dino_y = 6;
+  dino_y = (int8_t)(LOGICAL_HEIGHT - 2);
   dino_vy = 0;
   dino_game_over = false;
   dino_score = 0;
@@ -889,14 +867,17 @@ void start_dino() {
 
 void draw_dino() {
   clear_matrix();
-  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) set_pixel(7, x, true);
+  int8_t ground_y = (int8_t)(LOGICAL_HEIGHT - 1);
+  int8_t obstacle_top = (int8_t)(LOGICAL_HEIGHT - 3);
+  int8_t obstacle_mid = (int8_t)(LOGICAL_HEIGHT - 2);
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) set_pixel(ground_y, x, true);
   set_pixel(dino_y, 4, true);
   if (dino_y > 0) set_pixel(dino_y - 1, 4, true);
 
   for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) {
     if (dino_obs[x]) {
-      set_pixel(6, x, true);
-      set_pixel(5, x, true);
+      set_pixel(obstacle_mid, x, true);
+      set_pixel(obstacle_top, x, true);
     }
   }
 
@@ -907,9 +888,12 @@ void draw_dino() {
 }
 
 void update_dino() {
+  int8_t stand_y = (int8_t)(LOGICAL_HEIGHT - 2);
+  int8_t min_y = (int8_t)(LOGICAL_HEIGHT - 12);
+  int8_t hit_y = (int8_t)(LOGICAL_HEIGHT - 3);
   if (!dino_game_over) {
-    if (action_edge() && dino_y >= 6) {
-      dino_vy = -3;
+    if (action_edge() && dino_y >= stand_y) {
+      dino_vy = -4;
       tone_click();
       emit_event("DINO_JUMP_OK");
     }
@@ -922,10 +906,10 @@ void update_dino() {
 
       dino_y += dino_vy;
       dino_vy += 1;
-      if (dino_y > 6) { dino_y = 6; dino_vy = 0; }
-      if (dino_y < 2) dino_y = 2;
+      if (dino_y > stand_y) { dino_y = stand_y; dino_vy = 0; }
+      if (dino_y < min_y) dino_y = min_y;
 
-      bool hit = dino_obs[4] && (dino_y >= 5);
+      bool hit = dino_obs[4] && (dino_y >= hit_y);
       if (hit) {
         dino_game_over = true;
         emit_event("DINO_FAIL");
@@ -963,24 +947,35 @@ void surf_spawn() {
 
 void draw_surf() {
   clear_matrix();
+  int8_t lane_y[3] = {
+    (int8_t)(LOGICAL_HEIGHT / 4),
+    (int8_t)(LOGICAL_HEIGHT / 2),
+    (int8_t)((LOGICAL_HEIGHT * 3) / 4)
+  };
+  int8_t sep_a = (int8_t)((lane_y[0] + lane_y[1]) / 2);
+  int8_t sep_b = (int8_t)((lane_y[1] + lane_y[2]) / 2);
   for (uint8_t x = 0; x < LOGICAL_WIDTH; x += 2) {
-    set_pixel(2, x, true);
-    set_pixel(4, x, true);
+    set_pixel(sep_a, x, true);
+    set_pixel(sep_b, x, true);
   }
 
-  int8_t py = 1 + surf_lane * 2;
+  int8_t py = lane_y[surf_lane];
   set_pixel(py, 4, true);
   set_pixel(py, 5, true);
+  set_pixel(py - 1, 4, true);
+  set_pixel(py + 1, 4, true);
 
   for (uint8_t i = 0; i < SURF_MAX_OBS; i++) {
     if (!surf_obs[i].active) continue;
-    int8_t y = 1 + surf_obs[i].lane * 2;
+    int8_t y = lane_y[surf_obs[i].lane];
     set_pixel(y, surf_obs[i].x, true);
+    set_pixel(y - 1, surf_obs[i].x, true);
+    set_pixel(y + 1, surf_obs[i].x, true);
   }
 
   uint8_t bars = (uint8_t)min((int)(surf_score / 12), 8);
   for (uint8_t i = 0; i < bars; i++) set_pixel(0, i, true);
-  if (surf_game_over && blink_on) for (uint8_t x = 10; x < 22; x++) set_pixel(7, x, true);
+  if (surf_game_over && blink_on) for (uint8_t x = 10; x < 22; x++) set_pixel((int8_t)(LOGICAL_HEIGHT - 1), x, true);
   update_matrix();
 }
 
@@ -1005,7 +1000,7 @@ void update_surf() {
 
       for (uint8_t i = 0; i < SURF_MAX_OBS; i++) {
         if (!surf_obs[i].active) continue;
-        if (surf_obs[i].x == 4 && surf_obs[i].lane == surf_lane) {
+        if ((surf_obs[i].x == 4 || surf_obs[i].x == 5) && surf_obs[i].lane == surf_lane) {
           surf_game_over = true;
           emit_event("SURF_FAIL");
         }
@@ -1038,7 +1033,7 @@ void start_react() {
 
 void draw_react_arrow(int8_t dir) {
   int8_t cx = (int8_t)(LOGICAL_WIDTH / 2);
-  int8_t cy = 3;
+  int8_t cy = (int8_t)(LOGICAL_HEIGHT / 2);
   if (dir == 0) {
     set_pixel(cy - 2, cx, true);
     set_pixel(cy - 1, cx - 1, true); set_pixel(cy - 1, cx, true); set_pixel(cy - 1, cx + 1, true);
@@ -1067,7 +1062,7 @@ void draw_react() {
 
   uint16_t elapsed = (uint16_t)(millis() - react_round_at);
   uint8_t time_bar = (elapsed >= react_window_ms) ? 0 : (uint8_t)(8 - (elapsed * 8 / react_window_ms));
-  for (uint8_t i = 0; i < time_bar; i++) set_pixel(7, (LOGICAL_WIDTH - 1) - i, true);
+  for (uint8_t i = 0; i < time_bar; i++) set_pixel((int8_t)(LOGICAL_HEIGHT - 1), (LOGICAL_WIDTH - 1) - i, true);
 
   if (react_game_over && blink_on) for (uint8_t x = 10; x < 22; x++) set_pixel(0, x, true);
   update_matrix();
@@ -1102,13 +1097,13 @@ void update_react() {
 
 // -------------------- parkour --------------------
 void start_parkour() {
-  park_player_y = 5;
+  park_player_y = (int8_t)(LOGICAL_HEIGHT - 3);
   park_player_vy = 0;
   park_game_over = false;
   park_score = 0;
   park_last_step_at = millis();
-  park_gen_h = 6;
-  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) park_cols[x] = 6;
+  park_gen_h = (uint8_t)(LOGICAL_HEIGHT - 4);
+  for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) park_cols[x] = (uint8_t)(LOGICAL_HEIGHT - 4);
 }
 
 void park_shift_left() {
@@ -1123,8 +1118,10 @@ void park_spawn_col() {
 
   int8_t delta = (int8_t)random(-1, 2);
   int8_t nh = (int8_t)park_gen_h + delta;
-  if (nh < 4) nh = 4;
-  if (nh > 7) nh = 7;
+  int8_t min_h = (int8_t)(LOGICAL_HEIGHT - 9);
+  int8_t max_h = (int8_t)(LOGICAL_HEIGHT - 2);
+  if (nh < min_h) nh = min_h;
+  if (nh > max_h) nh = max_h;
   park_gen_h = (uint8_t)nh;
   park_cols[LOGICAL_WIDTH - 1] = park_gen_h;
 }
@@ -1134,7 +1131,7 @@ void draw_parkour() {
   for (uint8_t x = 0; x < LOGICAL_WIDTH; x++) {
     uint8_t h = park_cols[x];
     if (h == 0) continue;
-    for (uint8_t y = h; y < 8; y++) set_pixel(y, x, true);
+    for (uint8_t y = h; y < LOGICAL_HEIGHT; y++) set_pixel(y, x, true);
   }
 
   set_pixel(park_player_y, 4, true);
@@ -1150,7 +1147,7 @@ void draw_parkour() {
 void update_parkour() {
   if (!park_game_over) {
     uint8_t ground_h = park_cols[4];
-    int8_t stand_y = (ground_h == 0) ? 7 : (int8_t)ground_h - 1;
+    int8_t stand_y = (ground_h == 0) ? (int8_t)(LOGICAL_HEIGHT - 1) : (int8_t)ground_h - 1;
     bool on_ground = (ground_h != 0 && park_player_y >= stand_y && park_player_vy >= 0);
 
     if ((action_edge() || joy_dir_y() < 0) && on_ground) {
@@ -1171,13 +1168,13 @@ void update_parkour() {
       if (park_player_y < 0) park_player_y = 0;
 
       ground_h = park_cols[4];
-      stand_y = (ground_h == 0) ? 7 : (int8_t)ground_h - 1;
+      stand_y = (ground_h == 0) ? (int8_t)(LOGICAL_HEIGHT - 1) : (int8_t)ground_h - 1;
       if (ground_h != 0 && park_player_y >= stand_y) {
         park_player_y = stand_y;
         park_player_vy = 0;
       }
 
-      if (ground_h == 0 && park_player_y >= 7) park_game_over = true;
+      if (ground_h == 0 && park_player_y >= (int8_t)(LOGICAL_HEIGHT - 1)) park_game_over = true;
       if (!park_game_over) park_score++;
     }
   } else if (action_edge()) {
@@ -1189,41 +1186,11 @@ void update_parkour() {
   draw_parkour();
 }
 
-void music_play_current_note() {
-  const MusicNote* track = MUSIC_TRACKS[music_track_idx];
-  uint8_t len = MUSIC_TRACK_LENGTHS[music_track_idx];
-  if (len == 0) return;
-  if (music_note_idx >= len) music_note_idx = 0;
-  MusicNote note = track[music_note_idx];
-  if (note.freq == 0) noTone(BUZZER_PIN);
-  else tone(BUZZER_PIN, note.freq, note.dur_ms);
-  music_note_started_at = millis();
-}
-
-void music_step_engine() {
-  if (!music_playing) return;
-  const MusicNote* track = MUSIC_TRACKS[music_track_idx];
-  uint8_t len = MUSIC_TRACK_LENGTHS[music_track_idx];
-  if (len == 0) return;
-
-  if (music_note_started_at == 0) {
-    music_note_idx = 0;
-    music_play_current_note();
-    return;
-  }
-
-  MusicNote note = track[music_note_idx];
-  if ((millis() - music_note_started_at) < (unsigned long)(note.dur_ms + 18)) return;
-  music_note_idx = (uint8_t)((music_note_idx + 1) % len);
-  music_play_current_note();
-}
-
 void start_music_player() {
   music_track_idx = 0;
-  music_note_idx = 0;
   music_playing = false;
-  music_note_started_at = 0;
   music_last_nav_at = 0;
+  emit_event("MUSIC_STOP");
   noTone(BUZZER_PIN);
 }
 
@@ -1231,9 +1198,9 @@ void draw_music_player() {
   clear_matrix();
   draw_text_center_at("MUSC", 0);
 
-  if (music_track_idx == 0) draw_text_center_at("ONE", 8);
-  else if (music_track_idx == 1) draw_text_center_at("TWO", 8);
-  else draw_text_center_at("THRE", 8);
+  if (music_track_idx == 0) draw_text_center_at("MINE", 8);
+  else if (music_track_idx == 1) draw_text_center_at("OWA", 8);
+  else draw_text_center_at("LITE", 8);
 
   for (uint8_t i = 0; i < MUSIC_TRACK_COUNT; i++) {
     uint8_t x = (uint8_t)(10 + i * 4);
@@ -1263,8 +1230,6 @@ void draw_music_player() {
 }
 
 void update_music_player() {
-  music_step_engine();
-
   unsigned long now = millis();
   if (now - music_last_nav_at >= MUSIC_NAV_MS) {
     int8_t dy = joy_dir_y();
@@ -1275,9 +1240,12 @@ void update_music_player() {
       } else {
         music_track_idx = (uint8_t)((music_track_idx + 1) % MUSIC_TRACK_COUNT);
       }
-      music_note_idx = 0;
-      music_note_started_at = 0;
       emit_event("MUSIC_TRACK_CHANGE");
+      if (music_playing) {
+        if (music_track_idx == 0) emit_event("MUSIC_PLAY_1");
+        else if (music_track_idx == 1) emit_event("MUSIC_PLAY_2");
+        else emit_event("MUSIC_PLAY_3");
+      }
       tone_click();
     }
   }
@@ -1286,17 +1254,17 @@ void update_music_player() {
   bool main_press = main_button_edge();
   if (joy_press) {
     music_playing = !music_playing;
-    if (!music_playing) noTone(BUZZER_PIN);
-    else {
-      music_note_idx = 0;
-      music_note_started_at = 0;
-    }
+    if (!music_playing) emit_event("MUSIC_STOP");
+    else if (music_track_idx == 0) emit_event("MUSIC_PLAY_1");
+    else if (music_track_idx == 1) emit_event("MUSIC_PLAY_2");
+    else emit_event("MUSIC_PLAY_3");
     emit_event(music_playing ? "MUSIC_PLAY" : "MUSIC_PAUSE");
     tone_click();
   }
 
   if (main_press) {
     music_playing = false;
+    emit_event("MUSIC_STOP");
     noTone(BUZZER_PIN);
     tone_click();
     enter_menu();

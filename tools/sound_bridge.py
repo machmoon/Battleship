@@ -121,6 +121,10 @@ def main():
         "MENU_MUSIC_1": os.path.join(root, "C418 - Sweden - Minecraft.mp3"),
         "MENU_MUSIC_2": os.path.join(root, "rickroll-made-with-Voicemod.mp3"),
         "MENU_MUSIC_STOP": "",
+        "MUSIC_PLAY_1": os.path.join(root, "C418 - Sweden - Minecraft.mp3"),
+        "MUSIC_PLAY_2": os.path.join(root, "Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3"),
+        "MUSIC_PLAY_3": os.path.join(root, "2hollis_-_light_(mp3.pm).mp3"),
+        "MUSIC_STOP": "",
 
         # Battleship
         "BATTLE_HIT": os.path.join(root, "fahhh-made-with-Voicemod.mp3"),
@@ -150,8 +154,8 @@ def main():
     }
     audio_tracks = {
         1: os.path.join(root, "C418 - Sweden - Minecraft.mp3"),
-        2: os.path.join(root, "rickroll-made-with-Voicemod.mp3"),
-        3: os.path.join(root, "wii-startup-sound.mp3"),
+        2: os.path.join(root, "Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3"),
+        3: os.path.join(root, "2hollis_-_light_(mp3.pm).mp3"),
     }
 
     if args.print_events:
@@ -304,6 +308,14 @@ def main():
                         start_menu_music(sounds["MENU_MUSIC_1"])
                     elif line == "MENU_MUSIC_2":
                         start_menu_music(sounds["MENU_MUSIC_2"])
+                    elif line == "MUSIC_STOP":
+                        stop_menu_music()
+                    elif line == "MUSIC_PLAY_1":
+                        start_menu_music(sounds["MUSIC_PLAY_1"])
+                    elif line == "MUSIC_PLAY_2":
+                        start_menu_music(sounds["MUSIC_PLAY_2"])
+                    elif line == "MUSIC_PLAY_3":
+                        start_menu_music(sounds["MUSIC_PLAY_3"])
                     elif line in sounds:
                         play_file(sounds[line])
         except serial.SerialException as e:
