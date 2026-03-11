@@ -91,6 +91,14 @@ def set_output_device(name: str):
     subprocess.check_call(["SwitchAudioSource", "-s", name, "-t", "output"])
 
 
+def set_output_device_by_id(idx: int):
+    devices = list_output_devices()
+    if idx < 1 or idx > len(devices):
+        raise RuntimeError(f"Invalid output device id: {idx}. Valid range: 1..{len(devices)}")
+    set_output_device(devices[idx - 1])
+    return devices[idx - 1]
+
+
 def main():
     ap = argparse.ArgumentParser(description="Play laptop sounds from Arduino serial events")
     ap.add_argument("--port", help="Serial port (e.g., /dev/cu.usbmodem1101)")
@@ -99,6 +107,7 @@ def main():
     ap.add_argument("--list-ports", action="store_true", help="Print detected serial ports and exit")
     ap.add_argument("--list-output-devices", action="store_true", help="List audio output devices and exit (macOS, SwitchAudioSource)")
     ap.add_argument("--output-device", help="Audio output device name (macOS, SwitchAudioSource)")
+    ap.add_argument("--output-device-id", type=int, help="Audio output device id from --list-output-devices (1-based)")
     ap.add_argument("--test-event", help="Play one event immediately and exit (example: BATTLE_HIT)")
     ap.add_argument("--audio", type=int, choices=[0, 1, 2, 3], help="Play/stop audio command and exit (0=stop, 1..3=track)")
     ap.add_argument("--print-events", action="store_true", help="Print supported event names and exit")
@@ -173,9 +182,20 @@ def main():
             print(str(e))
             return
         print("Audio output devices:")
-        for d in devices:
-            print(f"  {d}")
+        for i, d in enumerate(devices, start=1):
+            print(f"  {i}. {d}")
         return
+
+    if args.output_device_id is not None:
+        try:
+            selected = set_output_device_by_id(args.output_device_id)
+            print(f"Audio output device [{args.output_device_id}] set to: {selected}")
+        except RuntimeError as e:
+            print(str(e))
+            return
+        except subprocess.CalledProcessError:
+            print(f"Failed to set output device id: {args.output_device_id}")
+            return
 
     if args.output_device:
         try:

@@ -111,6 +111,7 @@ Audio output devices (macOS):
 - Install helper: `brew install switchaudio-osx`
 - List devices: `python3 tools/sound_bridge.py --list-output-devices`
 - Set device: `python3 tools/sound_bridge.py --output-device \"MacBook Pro Speakers\"`
+- Set device by id: `python3 tools/sound_bridge.py --output-device-id 1`
 - Set + run bridge: `python3 tools/sound_bridge.py --output-device \"MacBook Pro Speakers\" --port /dev/cu.usbmodemXXXX`
 
 When running continuously, it also accepts serial commands:
