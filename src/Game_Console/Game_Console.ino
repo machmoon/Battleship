@@ -15,6 +15,7 @@
 #define JOY2_SW_PIN 3
 #define MAIN_BTN_PIN 2
 #define BUZZER_PIN 7
+#define RELAY_PIN 5
 
 #if MAIN_BTN_PIN == CLK_PIN
 #error "MAIN_BTN_PIN cannot be CLK_PIN (D13). Move button to D2 or another free pin."
@@ -187,6 +188,13 @@ bool music_playing = false;
 unsigned long music_last_nav_at = 0;
 const uint16_t MUSIC_NAV_MS = 180;
 
+// ---------- safe relay feedback ----------
+bool relay_active = false;
+unsigned long relay_started_at = 0;
+unsigned long relay_last_trigger_at = 0;
+const uint16_t RELAY_PULSE_MS = 1000;
+const uint16_t RELAY_COOLDOWN_MS = 2500;
+
 void send_all(uint8_t reg, uint8_t data) {
   digitalWrite(CS_PIN, LOW);
   for (uint8_t i = 0; i < DEVICE_COUNT; i++) {
@@ -304,6 +312,23 @@ void tone_click() {
   tone(BUZZER_PIN, 1650, 20);
   delay(24);
   tone(BUZZER_PIN, 2200, 22);
+}
+
+void trigger_loss_feedback() {
+  unsigned long now = millis();
+  if (now - relay_last_trigger_at < RELAY_COOLDOWN_MS) return;
+  relay_last_trigger_at = now;
+  relay_started_at = now;
+  relay_active = true;
+  digitalWrite(RELAY_PIN, HIGH);
+  emit_event("RELAY_PULSE");
+}
+
+void update_relay_feedback() {
+  if (!relay_active) return;
+  if (millis() - relay_started_at < RELAY_PULSE_MS) return;
+  relay_active = false;
+  digitalWrite(RELAY_PIN, LOW);
 }
 
 bool joy_button_edge() {
@@ -711,6 +736,7 @@ void fire_shot_for_player(uint8_t attacker) {
     b_game_over = true;
     b_player_won = (attacker == 1);
     emit_event("BATTLE_WIN");
+    trigger_loss_feedback();
     return;
   }
 
@@ -839,6 +865,7 @@ void update_snake() {
         s_game_over = true;
         s_player_won = false;
         emit_event("SNAKE_FAIL");
+        trigger_loss_feedback();
       } else {
         for (int8_t i = (int8_t)s_len; i > 0; i--) {
           s_x[i] = s_x[i - 1];
@@ -927,6 +954,7 @@ void update_dino() {
       if (hit) {
         dino_game_over = true;
         emit_event("DINO_FAIL");
+        trigger_loss_feedback();
       }
       else dino_score++;
     }
@@ -1017,6 +1045,7 @@ void update_surf() {
         if ((surf_obs[i].x == 4 || surf_obs[i].x == 5) && surf_obs[i].lane == surf_lane) {
           surf_game_over = true;
           emit_event("SURF_FAIL");
+          trigger_loss_feedback();
         }
       }
 
@@ -1094,11 +1123,13 @@ void update_react() {
       } else {
         react_game_over = true;
         emit_event("REACT_MISS");
+        trigger_loss_feedback();
       }
     }
     if ((millis() - react_round_at) > react_window_ms) {
       react_game_over = true;
       emit_event("REACT_MISS");
+      trigger_loss_feedback();
     }
   } else if (action_edge()) {
     tone_click();
@@ -1188,7 +1219,11 @@ void update_parkour() {
         park_player_vy = 0;
       }
 
-      if (ground_h == 0 && park_player_y >= (int8_t)(LOGICAL_HEIGHT - 1)) park_game_over = true;
+      if (ground_h == 0 && park_player_y >= (int8_t)(LOGICAL_HEIGHT - 1)) {
+        park_game_over = true;
+        emit_event("PARK_FAIL");
+        trigger_loss_feedback();
+      }
       if (!park_game_over) park_score++;
     }
   } else if (action_edge()) {
@@ -1293,6 +1328,8 @@ void setup() {
   pinMode(JOY_SW_ALT_PIN, INPUT_PULLUP);
   pinMode(JOY2_SW_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
 
   if (SERIAL_DEBUG) {
     Serial.begin(115200);
@@ -1315,6 +1352,8 @@ void setup() {
     Serial.print(JOY2_SW_PIN);
     Serial.print(" BUZZER:");
     Serial.println(BUZZER_PIN);
+    Serial.print(" RELAY:");
+    Serial.println(RELAY_PIN);
     Serial.print("DEVICE_COUNT=");
     Serial.println(DEVICE_COUNT);
     Serial.println("Primary control uses joystick SW on A5.");
@@ -1333,6 +1372,7 @@ void setup() {
 void loop() {
   update_blink();
   debug_snapshot();
+  update_relay_feedback();
 
   if (!console_powered) {
     clear_matrix();

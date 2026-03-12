@@ -32,6 +32,7 @@ Logical screen size is `32x24`.
 
 ### Other IO
 - Buzzer: `D7` (+), `GND` (-)
+- Relay trigger (optional, harmless output only): `D5`
 
 ## Upload
 1. Open Arduino IDE.
@@ -94,6 +95,7 @@ Controls:
 - Open Serial Monitor at `115200` for debug snapshots/events.
 - For display mapping checks, upload:
   - `src/Display_Calibration/Display_Calibration.ino`
+- Loss feedback relay emits `RELAY_PULSE` and pulses `D5` HIGH for 1s (with cooldown).
 
 ## Optional PC Sound Bridge
 If you want external PC sounds from serial events:
