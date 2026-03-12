@@ -26,7 +26,7 @@ Logical screen size is `32x24`.
 ### Controller 1 (P1 / global)
 - `VRx` -> `A0`
 - `VRy` -> `A1`
-- `SW` -> `A5`
+- `SW` -> `A5` (or `A2` fallback in code)
 - `VCC` -> `5V`
 - `GND` -> `GND`
 
@@ -40,10 +40,10 @@ Logical screen size is `32x24`.
 
 ## Boot + Menu
 - Standby screen: rectangle with `SBII`.
-- Press joystick button (`A5`) to power on and boot.
+- Press joystick button (`A5` or `A2`) to power on and boot.
 - In menu:
   - Controller 1 left/right changes app.
-  - Controller 1 button (`A5`) enters app.
+  - Controller 1 button (`A5` or `A2`) enters app.
 
 Menu apps:
 1. Battleship
@@ -70,11 +70,11 @@ Flow:
 - P2 turn
 
 Controls:
-- `A0/A1` move, `A5` confirm (all phases).
-- Game over: `A5` returns to menu.
+- `A0/A1` move, joystick press (`A5` or `A2`) confirm (all phases).
+- Game over: joystick press returns to menu.
 
 ### Snake / Dino / Surf / Reaction / Parkour
-- Controlled by Controller 1 (`A0/A1`, `A5`).
+- Controlled by Controller 1 (`A0/A1`, joystick press on `A5` or `A2`).
 - Press action after game over to return to menu.
 - These games now use the full `32x24` display area.
 

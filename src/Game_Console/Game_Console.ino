@@ -9,6 +9,7 @@
 #define JOY_X_PIN A0
 #define JOY_Y_PIN A1
 #define JOY_SW_PIN A5
+#define JOY_SW_ALT_PIN A2
 #define JOY2_X_PIN A3
 #define JOY2_Y_PIN A4
 #define JOY2_SW_PIN 3
@@ -60,6 +61,7 @@ bool blink_on = true;
 unsigned long last_blink_at = 0;
 unsigned long last_move_at = 0;
 bool last_joy_button_down = false;
+bool last_joy_alt_button_down = false;
 bool last_joy2_button_down = false;
 bool last_main_button_down = false;
 
@@ -234,6 +236,8 @@ void debug_snapshot() {
   Serial.print(digitalRead(MAIN_BTN_PIN) == LOW ? 1 : 0);
   Serial.print(" joy_btn=");
   Serial.print(digitalRead(JOY_SW_PIN) == LOW ? 1 : 0);
+  Serial.print(" joy_btn_alt=");
+  Serial.print(digitalRead(JOY_SW_ALT_PIN) == LOW ? 1 : 0);
   Serial.print(" joy2_btn=");
   Serial.print(digitalRead(JOY2_SW_PIN) == LOW ? 1 : 0);
   Serial.print(" joy_x=");
@@ -309,6 +313,13 @@ bool joy_button_edge() {
   return edge;
 }
 
+bool joy_alt_button_edge() {
+  bool down = (digitalRead(JOY_SW_ALT_PIN) == LOW);
+  bool edge = (down && !last_joy_alt_button_down);
+  last_joy_alt_button_down = down;
+  return edge;
+}
+
 bool joy2_button_edge() {
   bool down = (digitalRead(JOY2_SW_PIN) == LOW);
   bool edge = (down && !last_joy2_button_down);
@@ -324,7 +335,7 @@ bool main_button_edge() {
 }
 
 bool action_edge() {
-  return joy_button_edge() || main_button_edge();
+  return joy_button_edge() || joy_alt_button_edge();
 }
 
 void update_blink() {
@@ -1251,9 +1262,8 @@ void update_music_player() {
     }
   }
 
-  bool joy_press = joy_button_edge();
-  bool main_press = main_button_edge();
-  if (joy_press) {
+  bool select_press = action_edge();
+  if (select_press) {
     music_playing = true;
     menu_music_choice = music_track_idx;
     if (menu_music_choice == 0) emit_event("MENU_MUSIC_1");
@@ -1261,15 +1271,6 @@ void update_music_player() {
     else emit_event("MENU_MUSIC_3");
     emit_event("MUSIC_SELECT");
     tone_click();
-  }
-
-  if (main_press) {
-    music_playing = false;
-    emit_event("MUSIC_STOP");
-    noTone(BUZZER_PIN);
-    tone_click();
-    enter_menu();
-    return;
   }
 
   if (can_move_now() && joy_dir_x() < 0) {
@@ -1286,6 +1287,7 @@ void update_music_player() {
 void setup() {
   pinMode(MAIN_BTN_PIN, INPUT_PULLUP);
   pinMode(JOY_SW_PIN, INPUT_PULLUP);
+  pinMode(JOY_SW_ALT_PIN, INPUT_PULLUP);
   pinMode(JOY2_SW_PIN, INPUT_PULLUP);
   pinMode(BUZZER_PIN, OUTPUT);
 
@@ -1304,6 +1306,8 @@ void setup() {
     Serial.print(MAIN_BTN_PIN);
     Serial.print(" JOY_BTN:");
     Serial.print(JOY_SW_PIN);
+    Serial.print(" JOY_BTN_ALT:");
+    Serial.print(JOY_SW_ALT_PIN);
     Serial.print(" JOY2_BTN:");
     Serial.print(JOY2_SW_PIN);
     Serial.print(" BUZZER:");
