@@ -118,10 +118,10 @@ Audio output devices (macOS):
 
 ## Optional Dino Camera Control
 - Install deps: `pip install opencv-python pyserial`
-- Run camera jump controller:
-  - `python3 tools/dino_camera_controller.py --port /dev/cu.usbmodemXXXX --device-id 0 --show`
-  - or camera 1: `python3 tools/dino_camera_controller.py --port /dev/cu.usbmodemXXXX --device-id 1 --show`
-- When upward motion is detected, it sends `DINO_JUMP` to Arduino.
+- Single-script mode (sound + camera together):
+  - `python3 tools/sound_bridge.py --port /dev/cu.usbmodemXXXX --camera-device-id 0 --camera-show`
+  - or camera 1: `python3 tools/sound_bridge.py --port /dev/cu.usbmodemXXXX --camera-device-id 1 --camera-show`
+- When upward motion is detected, it sends `DINO_JUMP` to Arduino using the same serial connection.
 - Relay `D5` pulses when Dino death occurs.
 
 When running continuously, it also accepts serial commands:

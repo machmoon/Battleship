@@ -110,6 +110,10 @@ def main():
     ap.add_argument("--output-device-id", type=int, help="Audio output device id from --list-output-devices (1-based)")
     ap.add_argument("--test-event", help="Play one event immediately and exit (example: BATTLE_HIT)")
     ap.add_argument("--audio", type=int, choices=[0, 1, 2, 3], help="Play/stop audio command and exit (0=stop, 1..3=track)")
+    ap.add_argument("--camera-device-id", type=int, help="Enable Dino camera control with device id (e.g. 0 or 1)")
+    ap.add_argument("--camera-jump-threshold", type=float, default=18.0, help="Camera jump threshold in pixels")
+    ap.add_argument("--camera-cooldown-ms", type=int, default=450, help="Minimum ms between camera jump commands")
+    ap.add_argument("--camera-show", action="store_true", help="Show camera debug window")
     ap.add_argument("--print-events", action="store_true", help="Print supported event names and exit")
     args = ap.parse_args()
 
@@ -252,6 +256,24 @@ def main():
 
     menu_music_proc = None
     menu_music_path = ""
+    cam = None
+    face_cascade = None
+    baseline_y = None
+    last_cam_jump_at = 0.0
+
+    if args.camera_device_id is not None:
+        try:
+            import cv2  # type: ignore
+        except ImportError:
+            print("opencv-python is required for camera mode. Install with: pip install opencv-python")
+            return
+
+        cam = cv2.VideoCapture(args.camera_device_id)
+        if not cam.isOpened():
+            print(f"Failed to open camera device {args.camera_device_id}")
+            return
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        print(f"Camera mode ON (device {args.camera_device_id})")
 
     def stop_menu_music():
         nonlocal menu_music_proc, menu_music_path
@@ -300,10 +322,47 @@ def main():
         try:
             port = pick_port(args.port, allow_fallback=True)
             print(f"Listening on {port} @ {args.baud}")
-            with serial.Serial(port, args.baud, timeout=0.2) as ser:
+            with serial.Serial(port, args.baud, timeout=0.03) as ser:
                 # allow board reset on serial open
                 time.sleep(2.0)
                 while True:
+                    if cam is not None and face_cascade is not None:
+                        ok, frame = cam.read()
+                        if ok:
+                            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                            faces = face_cascade.detectMultiScale(
+                                gray,
+                                scaleFactor=1.1,
+                                minNeighbors=5,
+                                minSize=(40, 40),
+                            )
+                            if len(faces) > 0:
+                                x, y, w, h = max(faces, key=lambda r: r[2] * r[3])
+                                center_y = y + h * 0.5
+                                if baseline_y is None:
+                                    baseline_y = center_y
+                                else:
+                                    baseline_y = baseline_y * 0.96 + center_y * 0.04
+
+                                dy = baseline_y - center_y
+                                now = time.time()
+                                if dy >= args.camera_jump_threshold and (now - last_cam_jump_at) * 1000.0 >= args.camera_cooldown_ms:
+                                    try:
+                                        ser.write(b"DINO_JUMP\n")
+                                        last_cam_jump_at = now
+                                        print("CAMERA: DINO_JUMP")
+                                    except serial.SerialException:
+                                        pass
+
+                                if args.camera_show:
+                                    cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                                    cv2.putText(frame, f"dy={dy:.1f}", (10, 25), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                            if args.camera_show:
+                                cv2.imshow("Sound Bridge Camera", frame)
+                                key = cv2.waitKey(1) & 0xFF
+                                if key == 27 or key == ord("q"):
+                                    raise KeyboardInterrupt
+
                     try:
                         line = ser.readline().decode(errors="ignore").strip().upper()
                     except serial.SerialException as e:
@@ -349,12 +408,22 @@ def main():
                         play_file(sounds[event_key])
         except serial.SerialException as e:
             print(f"Serial open error: {e}")
+        except KeyboardInterrupt:
+            break
         except RuntimeError as e:
             print(str(e))
 
         stop_menu_music()
         print("Reconnecting in 1.5s...")
         time.sleep(1.5)
+
+    if cam is not None:
+        cam.release()
+        try:
+            import cv2  # type: ignore
+            cv2.destroyAllWindows()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
