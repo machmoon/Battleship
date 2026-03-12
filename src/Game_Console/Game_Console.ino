@@ -733,7 +733,7 @@ void draw_battleship() {
 
 void update_battleship() {
   if (b_phase == BS_PHASE_GAME_OVER) {
-    if (action_edge() || joy2_button_edge()) {
+    if (action_edge()) {
       tone_click();
       enter_menu();
       return;
@@ -742,15 +742,14 @@ void update_battleship() {
     return;
   }
 
-  bool p2_active = (b_phase == BS_PHASE_PLACE_P2 || b_phase == BS_PHASE_P2_TURN);
   if (can_move_now()) {
-    int8_t dx = p2_active ? joy2_dir_x() : joy_dir_x();
-    int8_t dy = p2_active ? joy2_dir_y() : joy_dir_y();
+    int8_t dx = joy_dir_x();
+    int8_t dy = joy_dir_y();
     if (dx != 0) b_cursor_x = (uint8_t)constrain((int)b_cursor_x + dx, 0, (int)B_SIZE - 1);
     if (dy != 0) b_cursor_y = (uint8_t)constrain((int)b_cursor_y + dy, 0, (int)B_SIZE - 1);
   }
 
-  bool fire_edge = p2_active ? joy2_button_edge() : action_edge();
+  bool fire_edge = action_edge();
   if (fire_edge) {
     tone_click();
     if (b_phase == BS_PHASE_PLACE_P1) place_ship_for_player(1);
@@ -1273,6 +1272,14 @@ void update_music_player() {
     return;
   }
 
+  if (can_move_now() && joy_dir_x() < 0) {
+    music_playing = false;
+    emit_event("MUSIC_STOP");
+    noTone(BUZZER_PIN);
+    enter_menu();
+    return;
+  }
+
   draw_music_player();
 }
 
@@ -1303,7 +1310,7 @@ void setup() {
     Serial.println(BUZZER_PIN);
     Serial.print("DEVICE_COUNT=");
     Serial.println(DEVICE_COUNT);
-    Serial.println("Expected: button on D2->GND, not on D13.");
+    Serial.println("Primary control uses joystick SW on A5.");
   }
 
   max7219_init();
@@ -1345,7 +1352,7 @@ void loop() {
     }
     update_matrix();
 
-    if (main_button_edge()) {
+    if (action_edge()) {
       log_event("Power button edge detected; entering boot.");
       console_powered = true;
       boot_started_at = millis();

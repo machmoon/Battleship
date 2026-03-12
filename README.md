@@ -1,4 +1,4 @@
-# SBII LED Matrix Console (32x24, 2 Controllers)
+# SBII LED Matrix Console (32x24, 1 Joystick)
 
 This project runs a mini console on 12 MAX7219 chips (three 4-in-1 modules).
 
@@ -30,15 +30,7 @@ Logical screen size is `32x24`.
 - `VCC` -> `5V`
 - `GND` -> `GND`
 
-### Controller 2 (P2 in Battleship)
-- `VRx` -> `A3`
-- `VRy` -> `A4`
-- `SW` -> `D3`
-- `VCC` -> `5V`
-- `GND` -> `GND`
-
 ### Other IO
-- Main button: `D2` to `GND` (power/action)
 - Buzzer: `D7` (+), `GND` (-)
 
 ## Upload
@@ -48,10 +40,10 @@ Logical screen size is `32x24`.
 
 ## Boot + Menu
 - Standby screen: rectangle with `SBII`.
-- Press main button (`D2`) to power on and boot.
+- Press joystick button (`A5`) to power on and boot.
 - In menu:
   - Controller 1 left/right changes app.
-  - Controller 1 button (`A5`) or main button (`D2`) enters app.
+  - Controller 1 button (`A5`) enters app.
 
 Menu apps:
 1. Battleship
@@ -72,18 +64,17 @@ Layout:
 - `x 24..31`: P2 board
 
 Flow:
-- P1 places 4 ships (Controller 1)
-- P2 places 4 ships (Controller 2)
-- P1 turn (Controller 1)
-- P2 turn (Controller 2)
+- P1 places 4 ships
+- P2 places 4 ships
+- P1 turn
+- P2 turn
 
 Controls:
-- P1 phases: `A0/A1` move, `A5` (or `D2`) confirm.
-- P2 phases: `A3/A4` move, `D3` confirm.
-- Game over: either player button returns to menu.
+- `A0/A1` move, `A5` confirm (all phases).
+- Game over: `A5` returns to menu.
 
 ### Snake / Dino / Surf / Reaction / Parkour
-- Controlled by Controller 1 (`A0/A1`, `A5`, `D2`).
+- Controlled by Controller 1 (`A0/A1`, `A5`).
 - Press action after game over to return to menu.
 - These games now use the full `32x24` display area.
 
@@ -91,7 +82,7 @@ Controls:
 - Enter from menu item `MUSC`.
 - Controller 1 up/down (`A1`) changes track.
 - Controller 1 button (`A5`) selects this song as **menu background music**.
-- Main button (`D2`) exits to menu.
+- Move joystick left (`A0`) to exit to menu.
 - Tracks:
   - `MINE` -> `C418 - Sweden - Minecraft.mp3`
   - `OWA` -> `Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3`
