@@ -126,11 +126,17 @@ def main():
         "MUSIC_PLAY_2": os.path.join(root, "Lil_Tecca_-_OWA_OWA_(mp3.pm).mp3"),
         "MUSIC_PLAY_3": os.path.join(root, "2hollis_-_light_(mp3.pm).mp3"),
         "MUSIC_STOP": "",
+        "MUSIC_PLAY": os.path.join(root, "wii---button-press-made-with-Voicemod.mp3"),
+        "MUSIC_PAUSE": os.path.join(root, "wii---button-press-made-with-Voicemod.mp3"),
+        "MUSIC_SELECT": os.path.join(root, "wii---button-press-made-with-Voicemod.mp3"),
+        "MUSIC_TRACK_CHANGE": os.path.join(root, "wii---button-press-made-with-Voicemod.mp3"),
 
         # Battleship
         "BATTLE_HIT": os.path.join(root, "fahhh-made-with-Voicemod.mp3"),
         "BATTLE_MISS": os.path.join(root, "kirby-falling-made-with-Voicemod.mp3"),
         "BATTLE_WIN": os.path.join(root, "rick-roll-(never-gonna-give-you-up)-sound-effect-made-with-Voicemod.mp3"),
+        "BATTLE_PLACE_OK": os.path.join(root, "wii---button-press-made-with-Voicemod.mp3"),
+        "BATTLE_PLACE_ERR": os.path.join(root, "bruh-mp3-made-with-Voicemod.mp3"),
 
         # Snake
         "SNAKE_HIT": os.path.join(root, "yippee!-made-with-Voicemod.mp3"),
@@ -274,6 +280,22 @@ def main():
             return None
         return int(m.group(1))
 
+    def extract_event_key(line: str):
+        raw = line.strip().upper()
+        if not raw:
+            return None
+        if raw in sounds:
+            return raw
+
+        token = re.split(r"[\s,:]+", raw, maxsplit=1)[0]
+        if token in sounds:
+            return token
+
+        for key in sounds.keys():
+            if key and key in raw:
+                return key
+        return None
+
     while True:
         try:
             port = pick_port(args.port, allow_fallback=True)
@@ -303,24 +325,28 @@ def main():
                             start_menu_music(audio_tracks[audio_cmd])
                         continue
 
-                    if line == "MENU_MUSIC_STOP":
+                    event_key = extract_event_key(line)
+                    if event_key is None:
+                        continue
+
+                    if event_key == "MENU_MUSIC_STOP":
                         stop_menu_music()
-                    elif line == "MENU_MUSIC_1":
+                    elif event_key == "MENU_MUSIC_1":
                         start_menu_music(sounds["MENU_MUSIC_1"])
-                    elif line == "MENU_MUSIC_2":
+                    elif event_key == "MENU_MUSIC_2":
                         start_menu_music(sounds["MENU_MUSIC_2"])
-                    elif line == "MENU_MUSIC_3":
+                    elif event_key == "MENU_MUSIC_3":
                         start_menu_music(sounds["MENU_MUSIC_3"])
-                    elif line == "MUSIC_STOP":
+                    elif event_key == "MUSIC_STOP":
                         stop_menu_music()
-                    elif line == "MUSIC_PLAY_1":
+                    elif event_key == "MUSIC_PLAY_1":
                         start_menu_music(sounds["MUSIC_PLAY_1"])
-                    elif line == "MUSIC_PLAY_2":
+                    elif event_key == "MUSIC_PLAY_2":
                         start_menu_music(sounds["MUSIC_PLAY_2"])
-                    elif line == "MUSIC_PLAY_3":
+                    elif event_key == "MUSIC_PLAY_3":
                         start_menu_music(sounds["MUSIC_PLAY_3"])
-                    elif line in sounds:
-                        play_file(sounds[line])
+                    elif event_key in sounds:
+                        play_file(sounds[event_key])
         except serial.SerialException as e:
             print(f"Serial open error: {e}")
         except RuntimeError as e:
