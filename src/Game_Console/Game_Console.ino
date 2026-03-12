@@ -126,7 +126,7 @@ const uint8_t BS_PHASE_P2_TURN = 3;
 const uint8_t BS_PHASE_GAME_OVER = 4;
 
 // ---------- snake ----------
-const uint8_t S_MAX = 220;
+const uint8_t S_MAX = 140;
 int8_t s_x[S_MAX];
 int8_t s_y[S_MAX];
 uint8_t s_len = 0;
@@ -156,7 +156,7 @@ struct SurfObstacle {
   bool active;
 };
 
-const uint8_t SURF_MAX_OBS = 18;
+const uint8_t SURF_MAX_OBS = 12;
 SurfObstacle surf_obs[SURF_MAX_OBS];
 int8_t surf_lane = 1; // 0,1,2
 bool surf_game_over = false;
@@ -196,7 +196,7 @@ const uint16_t RELAY_PULSE_MS = 1000;
 const uint16_t RELAY_COOLDOWN_MS = 2500;
 
 // ---------- serial command bridge ----------
-char serial_cmd_buf[64];
+char serial_cmd_buf[24];
 uint8_t serial_cmd_len = 0;
 bool dino_jump_cmd = false;
 
