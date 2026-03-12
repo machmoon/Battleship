@@ -335,7 +335,7 @@ bool main_button_edge() {
 }
 
 bool action_edge() {
-  return joy_button_edge() || joy_alt_button_edge();
+  return joy_button_edge() || joy_alt_button_edge() || joy2_button_edge();
 }
 
 void update_blink() {
@@ -753,9 +753,12 @@ void update_battleship() {
     return;
   }
 
+  bool p2_phase = (b_phase == BS_PHASE_PLACE_P2 || b_phase == BS_PHASE_P2_TURN);
   if (can_move_now()) {
-    int8_t dx = joy_dir_x();
-    int8_t dy = joy_dir_y();
+    int8_t dx = p2_phase ? joy2_dir_x() : joy_dir_x();
+    int8_t dy = p2_phase ? joy2_dir_y() : joy_dir_y();
+    if (dx == 0) dx = joy_dir_x();
+    if (dy == 0) dy = joy_dir_y();
     if (dx != 0) b_cursor_x = (uint8_t)constrain((int)b_cursor_x + dx, 0, (int)B_SIZE - 1);
     if (dy != 0) b_cursor_y = (uint8_t)constrain((int)b_cursor_y + dy, 0, (int)B_SIZE - 1);
   }
@@ -1379,6 +1382,7 @@ void loop() {
 
     if (can_move_now()) {
       int8_t dx = joy_dir_x();
+      if (dx == 0) dx = joy2_dir_x();
       if (dx != 0) {
         int8_t next = (int8_t)menu_index + dx;
         if (next >= 0 && next < MENU_COUNT) {

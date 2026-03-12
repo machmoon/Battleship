@@ -42,8 +42,8 @@ Logical screen size is `32x24`.
 - Standby screen: rectangle with `SBII`.
 - Press joystick button (`A5` or `A2`) to power on and boot.
 - In menu:
-  - Controller 1 left/right changes app.
-  - Controller 1 button (`A5` or `A2`) enters app.
+  - Either joystick left/right changes app.
+  - Either joystick press enters app.
 
 Menu apps:
 1. Battleship
@@ -72,6 +72,7 @@ Flow:
 Controls:
 - `A0/A1` move, joystick press (`A5` or `A2`) confirm (all phases).
 - Game over: joystick press returns to menu.
+ - In P2 phases, joystick 2 (`A3/A4`) is preferred.
 
 ### Snake / Dino / Surf / Reaction / Parkour
 - Controlled by Controller 1 (`A0/A1`, joystick press on `A5` or `A2`).
