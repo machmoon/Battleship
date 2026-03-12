@@ -195,6 +195,11 @@ unsigned long relay_last_trigger_at = 0;
 const uint16_t RELAY_PULSE_MS = 1000;
 const uint16_t RELAY_COOLDOWN_MS = 2500;
 
+// ---------- serial command bridge ----------
+char serial_cmd_buf[64];
+uint8_t serial_cmd_len = 0;
+bool dino_jump_cmd = false;
+
 void send_all(uint8_t reg, uint8_t data) {
   digitalWrite(CS_PIN, LOW);
   for (uint8_t i = 0; i < DEVICE_COUNT; i++) {
@@ -329,6 +334,41 @@ void update_relay_feedback() {
   if (millis() - relay_started_at < RELAY_PULSE_MS) return;
   relay_active = false;
   digitalWrite(RELAY_PIN, LOW);
+}
+
+void handle_serial_command_line(const char* line_in) {
+  if (!line_in || !line_in[0]) return;
+  char line[64];
+  uint8_t i = 0;
+  while (line_in[i] && i < sizeof(line) - 1) {
+    char c = line_in[i];
+    if (c >= 'a' && c <= 'z') c = (char)(c - 32);
+    line[i] = c;
+    i++;
+  }
+  line[i] = 0;
+
+  if (strcmp(line, "DINO_JUMP") == 0 || strcmp(line, "JUMP") == 0) {
+    dino_jump_cmd = true;
+    return;
+  }
+}
+
+void process_serial_commands() {
+  while (Serial.available() > 0) {
+    char c = (char)Serial.read();
+    if (c == '\r' || c == '\n') {
+      if (serial_cmd_len > 0) {
+        serial_cmd_buf[serial_cmd_len] = 0;
+        handle_serial_command_line(serial_cmd_buf);
+        serial_cmd_len = 0;
+      }
+      continue;
+    }
+    if (serial_cmd_len < sizeof(serial_cmd_buf) - 1) {
+      serial_cmd_buf[serial_cmd_len++] = c;
+    }
+  }
 }
 
 bool joy_button_edge() {
@@ -736,7 +776,6 @@ void fire_shot_for_player(uint8_t attacker) {
     b_game_over = true;
     b_player_won = (attacker == 1);
     emit_event("BATTLE_WIN");
-    trigger_loss_feedback();
     return;
   }
 
@@ -865,7 +904,6 @@ void update_snake() {
         s_game_over = true;
         s_player_won = false;
         emit_event("SNAKE_FAIL");
-        trigger_loss_feedback();
       } else {
         for (int8_t i = (int8_t)s_len; i > 0; i--) {
           s_x[i] = s_x[i - 1];
@@ -933,7 +971,9 @@ void update_dino() {
   int8_t min_y = (int8_t)(LOGICAL_HEIGHT - 12);
   int8_t hit_y = (int8_t)(LOGICAL_HEIGHT - 3);
   if (!dino_game_over) {
-    if (action_edge() && dino_y >= stand_y) {
+    bool jump_edge = action_edge() || dino_jump_cmd;
+    if (dino_jump_cmd) dino_jump_cmd = false;
+    if (jump_edge && dino_y >= stand_y) {
       dino_vy = -4;
       tone_click();
       emit_event("DINO_JUMP_OK");
@@ -1045,7 +1085,6 @@ void update_surf() {
         if ((surf_obs[i].x == 4 || surf_obs[i].x == 5) && surf_obs[i].lane == surf_lane) {
           surf_game_over = true;
           emit_event("SURF_FAIL");
-          trigger_loss_feedback();
         }
       }
 
@@ -1123,13 +1162,11 @@ void update_react() {
       } else {
         react_game_over = true;
         emit_event("REACT_MISS");
-        trigger_loss_feedback();
       }
     }
     if ((millis() - react_round_at) > react_window_ms) {
       react_game_over = true;
       emit_event("REACT_MISS");
-      trigger_loss_feedback();
     }
   } else if (action_edge()) {
     tone_click();
@@ -1222,7 +1259,6 @@ void update_parkour() {
       if (ground_h == 0 && park_player_y >= (int8_t)(LOGICAL_HEIGHT - 1)) {
         park_game_over = true;
         emit_event("PARK_FAIL");
-        trigger_loss_feedback();
       }
       if (!park_game_over) park_score++;
     }
@@ -1370,6 +1406,7 @@ void setup() {
 }
 
 void loop() {
+  process_serial_commands();
   update_blink();
   debug_snapshot();
   update_relay_feedback();

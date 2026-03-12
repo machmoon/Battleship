@@ -79,6 +79,7 @@ Controls:
 - Controlled by Controller 1 (`A0/A1`, joystick press on `A5` or `A2`).
 - Press action after game over to return to menu.
 - These games now use the full `32x24` display area.
+- Dino also supports serial camera jump command: `DINO_JUMP`.
 
 ### Music Player
 - Enter from menu item `MUSC`.
@@ -95,7 +96,7 @@ Controls:
 - Open Serial Monitor at `115200` for debug snapshots/events.
 - For display mapping checks, upload:
   - `src/Display_Calibration/Display_Calibration.ino`
-- Loss feedback relay emits `RELAY_PULSE` and pulses `D5` HIGH for 1s (with cooldown).
+- Battleship loss feedback emits `RELAY_PULSE` and pulses `D5` HIGH for 1s (with cooldown).
 
 ## Optional PC Sound Bridge
 If you want external PC sounds from serial events:
@@ -114,6 +115,14 @@ Audio output devices (macOS):
 - Set device: `python3 tools/sound_bridge.py --output-device \"MacBook Pro Speakers\"`
 - Set device by id: `python3 tools/sound_bridge.py --output-device-id 1`
 - Set + run bridge: `python3 tools/sound_bridge.py --output-device \"MacBook Pro Speakers\" --port /dev/cu.usbmodemXXXX`
+
+## Optional Dino Camera Control
+- Install deps: `pip install opencv-python pyserial`
+- Run camera jump controller:
+  - `python3 tools/dino_camera_controller.py --port /dev/cu.usbmodemXXXX --device-id 0 --show`
+  - or camera 1: `python3 tools/dino_camera_controller.py --port /dev/cu.usbmodemXXXX --device-id 1 --show`
+- When upward motion is detected, it sends `DINO_JUMP` to Arduino.
+- Relay `D5` pulses when Dino death occurs.
 
 When running continuously, it also accepts serial commands:
 - `AUDIO 1`, `AUDIO 2`, `AUDIO 3`, `AUDIO 0`
